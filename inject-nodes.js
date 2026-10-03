@@ -136,6 +136,22 @@ function visit(tag) {
   visiting.delete(tag);visited.add(tag);
 }
 for (const tag of graph.keys()) visit(tag);
-$content=JSON.stringify(config,null,2);
+// 紧凑输出：完整保留规则，避免超过客户端 4 MiB gRPC 传输上限。
+function utf8Length(text) {
+  let bytes=0;
+  for (const char of text) {
+    const cp=char.codePointAt(0);
+    bytes += cp<=0x7f ? 1 : cp<=0x7ff ? 2 : cp<=0xffff ? 3 : 4;
+  }
+  return bytes;
+}
+const content=JSON.stringify(config);
+const outputBytes=utf8Length(content);
+const maxOutputBytes=4*1024*1024-64*1024; // 为消息包装预留 64 KiB。
+if (outputBytes>maxOutputBytes) {
+  throw new Error('紧凑配置仍过大：' + outputBytes + ' 字节，上限 ' + maxOutputBytes +
+    ' 字节（4 MiB 传输上限预留 64 KiB）。请减少组合订阅选入的节点或节点附加数据，再重新生成');
+}
+$content=content;
 console.log('[组合订阅注入] 完成：机场 ' + airport.length + '，VPS ' + vps.length +
-  '，IPv6 节点过滤 ' + filteredIPv6 + '，信息过滤 ' + removedInfo + '，去重 ' + duplicates + '；香港保留');
+  '，IPv6 节点过滤 ' + filteredIPv6 + '，信息过滤 ' + removedInfo + '，去重 ' + duplicates + '；香港保留；紧凑配置 ' + outputBytes + ' 字节');

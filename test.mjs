@@ -11,7 +11,7 @@ const files=['config_tun.json','config_pc.json','config_android.json'];
 const ruleSources=JSON.parse(fs.readFileSync(path.join(root,'RULE_SOURCES.json'),'utf8'));
 function canonical(v){if(Array.isArray(v))return v.map(canonical);if(v&&typeof v==='object')return Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])]));return v;}
 const ruleHash=rules=>createHash('sha256').update(JSON.stringify(canonical(rules))).digest('hex');
-const script=new vm.Script('(async()=>{\n'+fs.readFileSync(path.join(root,'inject-nodes.js'),'utf8')+'\n})()');
+const script=new vm.Script('(async()=>{\n'+fs.readFileSync(path.join(root,'inject-nodes.js'),'utf8')+'\nreturn {outputBytes,byteLength:utf8Length($content)};\n})()');
 const node=(tag,n,extra={})=>({type:'shadowsocks',tag,server:'node'+n+'.example.com',server_port:443,
   method:'aes-128-gcm',password:'fixture-password-'+n,...extra});
 const own={outbounds:[node('private Tokyo',6),node('private US',7),node('not selected',8)]};
@@ -29,9 +29,9 @@ async function run(filename,args={},data=combined,source=own,template) {
     console:{log:s=>logs.push(String(s))},produceArtifact:async p=>{
       calls.push(p);return JSON.stringify(p.type==='collection'?data:source);
     }});
-  await script.runInContext(ctx,{timeout:3000});
+  const diagnostics=await script.runInContext(ctx,{timeout:3000});
   assert(logs.every(s=>!s.includes('fixture-password')));
-  return {c:JSON.parse(ctx.$content),calls};
+  return {c:JSON.parse(ctx.$content),calls,content:ctx.$content,...diagnostics};
 }
 function core(c,label){
   if(!temp)return;
@@ -82,8 +82,10 @@ function dnsResult(c,p){
 function dns(c,p){return dnsResult(c,p).result;}
 try{
 for(const filename of files){
- const {c,calls}=await run(filename);results.push(c);
+ const {c,calls,content,outputBytes,byteLength}=await run(filename);results.push(c);
  const t=(label,fn)=>test(filename+' / '+label,fn);
+ t('compact full configuration below transport limit',()=>{assert.equal(content,JSON.stringify(c));assert(outputBytes<4*1024*1024-64*1024);});
+ t('UTF8 byte counter includes Chinese and emoji',()=>{assert.equal(byteLength,Buffer.byteLength(content,'utf8'));assert.equal(outputBytes,byteLength);assert(outputBytes>content.length);});
  t('combined input',()=>{assert.equal(calls[0].name,'YBsSB2');assert.equal(calls[0].type,'collection');assert.equal(calls[1].name,'VPS');assert.equal(calls[1].type,'subscription');});
  t('HK kept',()=>assert(out(c,'自动选择').outbounds.includes('LXY 香港 HK')));
  t('dedup and information filter',()=>assert.equal(c.outbounds.filter(o=>o.type==='shadowsocks').length,6));
@@ -153,6 +155,8 @@ for(const filename of files){
  t('author evaluation ECS and timeout',()=>{const r=c.dns.rules.find(r=>r.action==='evaluate');assert.equal(r.client_subnet,'223.5.5.0/24');assert.equal(r.timeout,'2s');assert.equal(r.server,'google');});
  core(c,filename);
  const cases=[
+  ['large but safe node data preserves full output',async()=>{const data={outbounds:[node('LXY HK',1,{password:'x'.repeat(1000000)}),node('private Tokyo',6)]};const r=await run(filename,{},data);assert.equal(out(r.c,'LXY HK').password.length,1000000);assert(r.outputBytes<4*1024*1024-64*1024);assert.equal(r.byteLength,Buffer.byteLength(r.content,'utf8'));}],
+  ['UTF8 oversized output rejected before assignment',async()=>{const data={outbounds:[node('LXY HK',1,{password:'🌏'.repeat(300000)}),node('private Tokyo',6)]};await assert.rejects(run(filename,{},data),/紧凑配置仍过大.*减少组合订阅/);}],
   ['explicit combination type',async()=>{const r=await run(filename,{type:'组合订阅'});assert.equal(r.calls[0].type,'collection');}],
   ['single subscription rejected',async()=>assert.rejects(run(filename,{type:'subscription'}),/必须指向组合订阅/)],
   ['empty name rejected',async()=>assert.rejects(run(filename,{name:''}),/填写不同/)],
