@@ -50,7 +50,7 @@
 
 JSON 是空节点模板，须经 Sub-Store 文件脚本生成后再导入客户端。只设置系统代理并不接管所有软件或全部 UDP；配置也不修改系统全局 IPv6 设置。
 
-TUN 采用通用字段，不写死接口名称，不使用 Linux 专属 `auto_redirect`。桌面 TUN 同时监听 `127.0.0.1:7890` 的 HTTP/SOCKS 代理，程序可手动指定该地址；TUN 模板的 `set_system_proxy` 为 `false`，需要系统代理时自行开启。桌面非 TUN 保留自动系统代理；macOS 权限及客户端能力会影响自动设置。三平台运行仍需在你的真实设备上验证。
+TUN 采用通用字段，不写死接口名称，不使用 Linux 专属 `auto_redirect`。桌面 TUN 同时监听 `127.0.0.1:7890` 的 HTTP/SOCKS 代理，程序可手动指定该地址；Mac sing-box 图形客户端另通过 `tun.platform.http_proxy` 将系统 HTTP/HTTPS 代理指向同一端口。TUN 模板的 `mixed.set_system_proxy` 为 `false`，只关闭普通进程的自动系统代理设置，不关闭端口；Mac 图形客户端保持「系统 HTTP 代理」开启。Windows/命令行需要系统代理时手动设置同一地址。桌面非 TUN 保留自动系统代理；macOS 权限及客户端运行方式会影响纯 mixed 配置能否使用。三平台运行仍需在你的真实设备上验证。
 
 DNS 已按你最新要求采用作者方案，取代上一版“未知 DNS 国内优先”。FakeIP 范围为 `198.19.0.0/16`，无 IPv6 FakeIP；增加 `store_fakeip` 保留映射并使用新的缓存 ID。测速延迟不能代表吞吐或 AI 服务可用性。客户端更新 Sub-Store 订阅的链接发生在新配置运行之前，本配置不能修复更新链路本身。
 
@@ -75,6 +75,12 @@ DNS 已按你最新要求采用作者方案，取代上一版“未知 DNS 国�
 手机截图的 26 组为模板八组加额外十八组：`proxy`、`AI`、`ALL AUTO`、机场 AUTO/MANUAL/PIN 与地区测速组。设置截图中的 Oterea `sing-box-col.js` 会追加这些分组，并给模板空测速池补 `COMPATIBLE`。本仓库注入脚本改为保留八个策略定义及 `direct`，清理旧出站和端点，再从组合订阅重建两个节点池；最终校验八组的数量和顺序，并在日志记录 `分组 8/8` 及清理数量。重复运行会重新读取当前订阅，结果不叠加。安卓模板缓存 ID 更新为 `config_android-ipv4-author-dns-groups-v3`，用新的缓存命名空间重置旧选择。
 
 使用原来的 `main/config_android.json` 与 `main/inject-nodes.js` 地址。固定提交 URL 不会收到 main 上的更新。Sub-Store 安卓文件须启用本仓库的注入脚本；若后续再运行 Oterea 或其他追加分组的脚本，仍会重新出现多余分组。具体填写见使用说明。
+
+## 电脑填写与更新排错
+
+[完整填写说明](z-substore-scripts.md) 已分别列出电脑 TUN、电脑非 TUN 的「内容」与「操作」链接、参数、缓存选项、预览检查和设备设置；三份模板继续使用原 main 路径及同一组合订阅脚本。新增 Mac 7890 的监听、HTTP/SOCKS 检查步骤。
+
+`Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM` 是下载链路的 HTTP/2 错误。用户报告它发生在客户端更新配置时，仅凭错误不能定位到具体服务器或上游。客户端在应用新配置前就要下载文件，模板内的 HTTP Client 不控制此下载；说明包含 Sub-Store 预览/保存、生成文件下载、本地导入及 HTTP/1.1 对比步骤，不声称仅修改 JSON 即可修复远程 HTTP/2 链路。
 
 ## 开发与验证
 

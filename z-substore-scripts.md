@@ -18,7 +18,7 @@
 
 ## 2. 每个文件添加一条脚本操作
 
-移除原来的两条 Xream 模板注入操作，换成下列**一条远程文件脚本**：
+移除旧的 Xream/Oterea 等节点与分组注入操作，换成下列**一条远程文件脚本**：
 
 ```text
 https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js#name=YBsSB2&type=collection&vps_name=VPS&vps_type=subscription
@@ -61,7 +61,7 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 
 ## 设备设置
 
-- **电脑 TUN**：Windows/macOS 使用 `config_tun.json`；开启客户端 TUN 并授予所需权限，同时启动本地 HTTP/SOCKS 代理 `127.0.0.1:7890`。需要指定代理的软件可填写此地址，TUN 模板不自动设置系统代理（`set_system_proxy: false`）；需要时可手动开启系统代理。
+- **电脑 TUN**：Windows/macOS 使用 `config_tun.json`；开启客户端 TUN 并授予所需权限，同时启动本地 HTTP/SOCKS 代理 `127.0.0.1:7890`。Mac sing-box 图形客户端通过 `tun.platform.http_proxy` 提供系统 HTTP 代理，启动后保持「System HTTP Proxy / 系统 HTTP 代理」开启。`mixed.set_system_proxy: false` 仅避免通过普通进程设置系统代理，不关闭监听。Windows 或命令行客户端需要系统代理时可手动填写同一地址。
 - **电脑非 TUN**：使用 `config_pc.json`，关闭 TUN。本地 HTTP/SOCKS 地址为 `127.0.0.1:7890`；保留 `set_system_proxy: true` 自动设置系统代理。macOS 自动设置是否成功取决于客户端权限，必要时手动设置同一代理地址。
 - **Android**：使用 `config_android.json`，由兼容客户端创建系统 VPN；同意 Android VPN 授权。
 
@@ -99,7 +99,119 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 
 电脑 TUN 模板现在同时包含 `tun-in` 与 `mixed-in`，HTTP 和 SOCKS 共用 `127.0.0.1:7890`。刷新 Sub-Store 的 `config_tun.json` 远程模板，重新预览、保存，再更新客户端配置并重启。预览中 `inbounds` 应有 `tun` 和 `mixed` 两项，`mixed.listen_port` 为 `7890`。节点注入脚本地址及参数不变。
 
-如需手动设置系统或软件代理，地址填写 `127.0.0.1`、端口 `7890`。此端口仅允许本机连接。非 TUN 模板仍自动设置系统代理，Android 模板仍使用 VPN 入口。
+如需手动设置系统或软件代理，地址填写 `127.0.0.1`、端口 `7890`，HTTP 或 SOCKS5 均可，不填写用户名/密码。使用明确的 IPv4 地址，避免软件把 `localhost` 解析为 `::1`。此端口仅允许本机连接。非 TUN 模板仍自动设置系统代理，Android 模板仍使用 VPN 入口。
+
+Mac 图形客户端的 TUN 模板另有以下平台设置，用于把系统 HTTP/HTTPS 代理指向上述实际监听；它不替代 `mixed-in`，也不会单独创建端口：
+
+```json
+"platform": {
+  "http_proxy": {
+    "enabled": true,
+    "server": "127.0.0.1",
+    "server_port": 7890
+  }
+}
+```
+
+## 电脑 TUN 文件：内容与操作填写
+
+编辑现有 TUN 文件，保留它的文件名称和生成文件下载链接。
+
+| 「内容」项目 | 填写 |
+|---|---|
+| 类型 | 文件 |
+| 来源 | 远程 |
+| 合并来源 | 不合并 |
+| 远程文件失败处理 | 严格报错 |
+| User-Agent、代理策略、流量查询字段、age 公钥 | 沿用原空值 |
+| 禁用远程缓存 | 本次更新先开启，确认后恢复缓存 |
+
+「内容 → 链接」完整复制：
+
+```text
+https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/config_tun.json
+```
+
+「操作 → 脚本操作」选 **远程链接**，仅保留一条本仓库节点注入脚本。「启用」「预览」勾选，本次先勾选「关闭缓存」，确认后恢复缓存；「不验证服务器证书」不勾选。链接完整复制：
+
+```text
+https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js#name=YBsSB2&type=collection&vps_name=VPS&vps_type=subscription
+```
+
+展开参数时应为 `name=YBsSB2`、`type=collection`、`vps_name=VPS`、`vps_type=subscription`；移除旧 `outbound` 等参数及其他追加分组的脚本。
+
+点击「即时预览」：应只有上表八个策略组，`inbounds` 同时有 `tun-in` 和 `mixed-in`；后者的 `listen` 为 `127.0.0.1`、`listen_port` 为 `7890`，前者有上述 `platform.http_proxy`。保存后更新客户端中原有的 **Sub-Store 生成文件链接**，停止并重新启动配置。Mac sing-box 图形客户端保持「系统 HTTP 代理」开启；需要显式代理的软件填 `127.0.0.1:7890`。Windows 开启 TUN，手动系统代理按需要开启。
+
+## 电脑非 TUN 文件：内容与操作填写
+
+编辑现有非 TUN 文件，保留它的文件名称和生成文件下载链接。
+
+| 「内容」项目 | 填写 |
+|---|---|
+| 类型 | 文件 |
+| 来源 | 远程 |
+| 合并来源 | 不合并 |
+| 远程文件失败处理 | 严格报错 |
+| User-Agent、代理策略、流量查询字段、age 公钥 | 沿用原空值 |
+| 禁用远程缓存 | 本次更新先开启，确认后恢复缓存 |
+
+「内容 → 链接」完整复制：
+
+```text
+https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/config_pc.json
+```
+
+「操作 → 脚本操作」选 **远程链接**，仅保留一条本仓库节点注入脚本。「启用」「预览」勾选，本次先勾选「关闭缓存」，确认后恢复缓存；「不验证服务器证书」不勾选。链接完整复制：
+
+```text
+https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js#name=YBsSB2&type=collection&vps_name=VPS&vps_type=subscription
+```
+
+展开参数时应为 `name=YBsSB2`、`type=collection`、`vps_name=VPS`、`vps_type=subscription`；移除旧 `outbound` 等参数及其他追加分组的脚本。
+
+点击「即时预览」：应只有上表八个策略组，`inbounds` 仅有 `mixed-in`，没有 `tun`；地址 `127.0.0.1:7890`，`set_system_proxy: true`。保存后更新客户端中原有的 **Sub-Store 生成文件链接**，停止并重新启动配置。关闭客户端 TUN；自动设置系统代理失败时手动设置 HTTP/HTTPS/SOCKS 为 `127.0.0.1:7890`。macOS 使用非 TUN 模板需要客户端支持独立代理进程及设置系统代理的权限；仅提供 VPN 扩展的运行方式不保证支持纯 mixed 配置。
+
+## Mac 的 7890 检查
+
+先在客户端正在使用的最终配置中确认 `mixed-in`，不是只看 GitHub 模板。更新下载失败时，客户端仍可能运行旧配置。启动日志应出现 `inbound/mixed[mixed-in]` 和 `127.0.0.1:7890`；若有 `address already in use`，关闭占用端口的另一个代理程序后重启，不要同时启动两份电脑配置。
+
+Mac 终端先检查端口：
+
+```bash
+lsof -nP -iTCP:7890 -sTCP:LISTEN
+nc -vz 127.0.0.1 7890
+```
+
+再分别验证 HTTP 与 SOCKS5 代理；无需在系统设置里反复切换，也不使用环境变量里的其他代理：
+
+```bash
+curl --noproxy "" --proxy http://127.0.0.1:7890 --connect-timeout 10 --max-time 30 -I https://www.google.com/generate_204
+curl --noproxy "" --proxy socks5h://127.0.0.1:7890 --connect-timeout 10 --max-time 30 -I https://www.google.com/generate_204
+```
+
+- `Connection refused` / `Failed to connect`：检查配置是否真正更新、服务是否启动、端口是否存在。
+- 7890 连接成功但网页超时：检查「节点选择」中的节点、DNS 与客户端出站日志；这时不能仅归因于代理端口没有开启。
+- 两种 curl 都成功而某软件失败：核对该软件的代理协议、地址和端口；系统代理只对遵循系统设置的程序生效。
+
+## 配置更新报 NGHTTP2_ENHANCE_YOUR_CALM
+
+此错误是 HTTP/2 的 `ENHANCE_YOUR_CALM (0x0b)`，表示链路中的 HTTP/2 端点认为对端行为可能产生过大负载。单凭这行错误无法定位是 Sub-Store 服务、反向代理/CDN、上游订阅还是客户端连接触发，不能等同于 JSON 分组错误或先前的 4 MiB gRPC 限制。
+
+用户报告它发生在**电脑客户端更新配置**时。客户端先下载远程配置，再检查和应用 JSON；下载尚未成功，新模板里的 `http_clients` 不会控制这一请求。因此不在模板中添加无效的“关闭 HTTP/2”字段，也不改作者 DNS。官方 Apple 客户端更新逻辑及 libbox 下载器也独立于路由里的 HTTP Client。
+
+1. 在 Sub-Store 分别预览、保存两个电脑文件，确认生成的是紧凑 JSON 和八个策略组；不要同时连续更新三个场景。获取新文件后恢复模板/脚本缓存，避免每次重复拉取上游。
+2. 在浏览器打开对应的 **Sub-Store 生成文件下载链接**并下载。如果下载仍失败，检查 Sub-Store 后端日志以及前面的反向代理/CDN 日志；模板文件地址与生成文件地址是两个不同环节。
+3. 下载成功时，可先从本地文件导入客户端恢复使用。若要对比 HTTP/1.1 与 HTTP/2，在本机对同一生成文件 URL 做一次下载测试；该 URL 可能带 token，勿贴到公开仓库或日志中。Mac 默认 shell 为 zsh，可用：
+
+```zsh
+read -rs 'sb_update_url?粘贴 Sub-Store 生成文件下载链接（输入不回显）：'; printf '\n'
+curl --http1.1 --fail --location --connect-timeout 10 --max-time 90 --output config-download.json "$sb_update_url"
+unset sb_update_url
+```
+
+HTTP/1.1 成功而客户端仍报此错误时，优先检查下载服务/反向代理的 HTTP/2 兼容性与限制。要长期修复须调整实际下载链路或客户端，不能通过下载后才生效的 JSON 保证修复。保持证书验证；不要把生成的真实节点配置上传到 GitHub。
+
+依据：[HTTP/2 RFC 9113 第 7 节](https://www.rfc-editor.org/rfc/rfc9113.html#section-7)、[官方 1.14.2 mixed 文档](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/configuration/inbound/mixed.md)、[官方 1.14.2 TUN 文档](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/configuration/inbound/tun.md)、[Apple 客户端更新逻辑](https://github.com/SagerNet/sing-box-for-apple/blob/main/Library/Database/Profile%2BUpdate.swift)、[1.14.2 libbox 下载器](https://github.com/SagerNet/sing-box/blob/v1.14.2/experimental/libbox/http.go)。
 
 ## 安卓文件编辑填写（原 main 地址）
 

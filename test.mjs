@@ -180,6 +180,7 @@ for(const filename of files){
  ];
  for(const [label,fn]of cases){try{await fn();checks++;}catch(e){throw new Error(filename+' / '+label+': '+e.message,{cause:e});}}
 }
+test('Apple GUI HTTP proxy uses the existing mixed listener',()=>{const tun=results[0].inbounds.find(i=>i.type==='tun');const mixed=results[0].inbounds.find(i=>i.type==='mixed');assert.deepEqual(tun.platform.http_proxy,{enabled:true,server:mixed.listen,server_port:mixed.listen_port});assert.equal(mixed.set_system_proxy,false);assert(!results[1].inbounds.some(i=>i.type==='tun'));assert(!results[2].inbounds[0].platform);});
 for(const key of ['rules','servers','final','strategy'])test('desktop modes share DNS '+key,()=>assert.deepEqual(results[0].dns[key],results[1].dns[key]));
 for(const key of ['route','http_clients'])test('desktop modes share '+key,()=>assert.deepEqual(results[0][key],results[1][key]));
 console.log(JSON.stringify({status:'PASS',checks,coreChecks,files},null,2));
