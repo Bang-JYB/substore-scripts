@@ -6,7 +6,9 @@
   "experimental": {
     "cache_file": {
       "enabled": true,
-      "path": "cache.db"
+      "path": "cache.db",
+      "cache_id": "config_pc-ipv4",
+      "store_dns": true
     },
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
@@ -15,16 +17,21 @@
   },
   "http_clients": [
     {
-      "tag": "hc-proxy",
-      "detour": "LXY"
+      "tag": "hc-direct",
+      "detour": "direct",
+      "domain_resolver": {
+        "server": "dns-direct",
+        "strategy": "ipv4_only"
+      }
     }
   ],
   "dns": {
     "servers": [
       {
-        "type": "udp",
+        "type": "https",
         "tag": "dns-direct",
-        "server": "223.5.5.5"
+        "server": "223.5.5.5",
+        "detour": "direct"
       },
       {
         "type": "https",
@@ -41,23 +48,59 @@
     ],
     "rules": [
       {
+        "query_type": "AAAA",
+        "action": "predefined",
+        "rcode": "NOERROR"
+      },
+      {
+        "clash_mode": "Direct",
+        "server": "dns-direct"
+      },
+      {
+        "clash_mode": "Global",
+        "server": "dns-remote"
+      },
+      {
         "rule_set": [
           "ai-extra",
           "geosite-ai"
         ],
-        "action": "route",
         "server": "dns-ai"
       },
       {
         "rule_set": [
-          "geosite-cn"
+          "geosite-youtube",
+          "geosite-google",
+          "geosite-github",
+          "geosite-telegram"
         ],
-        "action": "route",
+        "server": "dns-remote"
+      },
+      {
+        "domain_suffix": [
+          "cn"
+        ],
         "server": "dns-direct"
+      },
+      {
+        "rule_set": [
+          "geosite-cn",
+          "geosite-apple-cn",
+          "geosite-microsoft-cn",
+          "geosite-onedrive",
+          "geosite-steam-cn",
+          "geosite-games-cn"
+        ],
+        "server": "dns-direct"
+      },
+      {
+        "rule_set": "geosite-foreign",
+        "server": "dns-remote"
       }
     ],
-    "final": "dns-remote",
-    "strategy": "ipv4_only"
+    "final": "dns-direct",
+    "strategy": "ipv4_only",
+    "cache_capacity": 8192
   },
   "inbounds": [
     {
@@ -83,35 +126,81 @@
       "tag": "LXY-自动",
       "outbounds": [],
       "url": "https://www.gstatic.com/generate_204",
-      "interval": "3m",
-      "tolerance": 50,
-      "idle_timeout": "30m",
+      "interval": "30m",
+      "tolerance": 150,
+      "idle_timeout": "1h",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "selector",
+      "tag": "VPS",
+      "outbounds": [
+        "VPS-自动"
+      ],
+      "default": "VPS-自动",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "urltest",
+      "tag": "VPS-自动",
+      "outbounds": [],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "30m",
+      "tolerance": 150,
+      "idle_timeout": "1h",
       "interrupt_exist_connections": false
     },
     {
       "type": "selector",
       "tag": "AI",
-      "outbounds": [],
+      "outbounds": [
+        "VPS"
+      ],
+      "default": "VPS",
       "interrupt_exist_connections": false
     },
     {
       "type": "direct",
-      "tag": "direct"
+      "tag": "direct",
+      "domain_resolver": {
+        "server": "dns-direct",
+        "strategy": "ipv4_only"
+      }
     }
   ],
   "route": {
     "rules": [
       {
-        "action": "sniff"
+        "network": "udp",
+        "port": 443,
+        "action": "reject"
+      },
+      {
+        "ip_version": 6,
+        "action": "reject"
+      },
+      {
+        "port": 53,
+        "action": "hijack-dns"
+      },
+      {
+        "action": "sniff",
+        "timeout": "100ms"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
       },
       {
         "clash_mode": "Direct",
-        "action": "route",
         "outbound": "direct"
       },
       {
         "clash_mode": "Global",
-        "action": "route",
         "outbound": "LXY"
       },
       {
@@ -119,30 +208,44 @@
           "ai-extra",
           "geosite-ai"
         ],
-        "action": "route",
         "outbound": "AI"
       },
       {
         "rule_set": [
-          "geosite-cn"
+          "geosite-youtube",
+          "geosite-google",
+          "geosite-github",
+          "geosite-telegram"
         ],
-        "action": "route",
+        "outbound": "LXY"
+      },
+      {
+        "domain_suffix": [
+          "cn"
+        ],
         "outbound": "direct"
+      },
+      {
+        "rule_set": [
+          "geosite-cn",
+          "geosite-apple-cn",
+          "geosite-microsoft-cn",
+          "geosite-onedrive",
+          "geosite-steam-cn",
+          "geosite-games-cn"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "rule_set": "geosite-foreign",
+        "outbound": "LXY"
       },
       {
         "action": "resolve",
         "strategy": "ipv4_only"
       },
       {
-        "ip_is_private": true,
-        "action": "route",
-        "outbound": "direct"
-      },
-      {
-        "rule_set": [
-          "geoip-cn"
-        ],
-        "action": "route",
+        "rule_set": "geoip-cn",
         "outbound": "direct"
       }
     ],
@@ -195,22 +298,105 @@
         "tag": "geosite-ai",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/category-ai-!cn.srs",
-        "update_interval": "3d"
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/category-ai-!cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
       },
       {
         "tag": "geosite-cn",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/cn.srs",
-        "update_interval": "3d"
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
       },
       {
         "tag": "geoip-cn",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/cn.srs",
-        "update_interval": "3d"
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geoip/cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-apple-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/apple-cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-microsoft-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/microsoft@cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-onedrive",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/onedrive.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-steam-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/steam@cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-games-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/category-games@cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-youtube",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/youtube.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-google",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-github",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/github.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-telegram",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/telegram.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "geosite-foreign",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/geolocation-!cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
       }
     ],
     "final": "LXY",
@@ -218,6 +404,7 @@
       "server": "dns-direct",
       "strategy": "ipv4_only"
     },
-    "default_http_client": "hc-proxy"
+    "default_http_client": "hc-direct",
+    "auto_detect_interface": true
   }
 }
