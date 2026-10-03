@@ -61,7 +61,7 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 
 ## 设备设置
 
-- **电脑 TUN**：Windows/macOS 使用 `config_tun.json`；开启客户端 TUN 并授予所需权限。
+- **电脑 TUN**：Windows/macOS 使用 `config_tun.json`；开启客户端 TUN 并授予所需权限，同时启动本地 HTTP/SOCKS 代理 `127.0.0.1:7890`。需要指定代理的软件可填写此地址，TUN 模板不自动设置系统代理（`set_system_proxy: false`）；需要时可手动开启系统代理。
 - **电脑非 TUN**：使用 `config_pc.json`，关闭 TUN。本地 HTTP/SOCKS 地址为 `127.0.0.1:7890`；保留 `set_system_proxy: true` 自动设置系统代理。macOS 自动设置是否成功取决于客户端权限，必要时手动设置同一代理地址。
 - **Android**：使用 `config_android.json`，由兼容客户端创建系统 VPN；同意 Android VPN 授权。
 
@@ -94,3 +94,9 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 3. 重新预览并保存文件，再更新客户端配置并重启。模板地址、脚本地址和组合参数不变。
 
 脚本会记录生成配置的 UTF-8 字节数；超过 4,128,768 字节会停止生成，给 4 MiB 消息包装预留 64 KiB。若仍提示配置过大，减少组合订阅选入的节点或节点附加数据后重新生成。请在 Sub-Store 保留紧凑输出，避免其他处理步骤再次格式化配置。
+
+## TUN 与 7890 同时使用
+
+电脑 TUN 模板现在同时包含 `tun-in` 与 `mixed-in`，HTTP 和 SOCKS 共用 `127.0.0.1:7890`。刷新 Sub-Store 的 `config_tun.json` 远程模板，重新预览、保存，再更新客户端配置并重启。预览中 `inbounds` 应有 `tun` 和 `mixed` 两项，`mixed.listen_port` 为 `7890`。节点注入脚本地址及参数不变。
+
+如需手动设置系统或软件代理，地址填写 `127.0.0.1`、端口 `7890`。此端口仅允许本机连接。非 TUN 模板仍自动设置系统代理，Android 模板仍使用 VPN 入口。

@@ -4,7 +4,7 @@
 
 | 文件 | 用途 |
 |---|---|
-| `config_tun.json` | macOS / Windows，TUN |
+| `config_tun.json` | macOS / Windows，TUN + 本地 HTTP/SOCKS 7890 |
 | `config_pc.json` | macOS / Windows，非 TUN 系统代理 |
 | `config_android.json` | Android，VPN |
 | `inject-nodes.js` | 从组合订阅注入节点、识别 VPS 来源、校验空池与环路 |
@@ -50,7 +50,7 @@
 
 JSON 是空节点模板，须经 Sub-Store 文件脚本生成后再导入客户端。只设置系统代理并不接管所有软件或全部 UDP；配置也不修改系统全局 IPv6 设置。
 
-TUN 采用通用字段，不写死接口名称，不使用 Linux 专属 `auto_redirect`。桌面非 TUN 保留自动系统代理；macOS 权限及客户端能力会影响自动设置。三平台运行仍需在你的真实设备上验证。
+TUN 采用通用字段，不写死接口名称，不使用 Linux 专属 `auto_redirect`。桌面 TUN 同时监听 `127.0.0.1:7890` 的 HTTP/SOCKS 代理，程序可手动指定该地址；TUN 模板的 `set_system_proxy` 为 `false`，需要系统代理时自行开启。桌面非 TUN 保留自动系统代理；macOS 权限及客户端能力会影响自动设置。三平台运行仍需在你的真实设备上验证。
 
 DNS 已按你最新要求采用作者方案，取代上一版“未知 DNS 国内优先”。FakeIP 范围为 `198.19.0.0/16`，无 IPv6 FakeIP；增加 `store_fakeip` 保留映射并使用新的缓存 ID。测速延迟不能代表吞吐或 AI 服务可用性。客户端更新 Sub-Store 订阅的链接发生在新配置运行之前，本配置不能修复更新链路本身。
 
