@@ -40,9 +40,20 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 
 预览中应出现：
 
-- `LXY-自动`：只含来自组合订阅的机场节点；香港节点保留。
-- `VPS-自动`：只含组合中匹配 VPS 来源的自建节点。
-- `LXY` 默认选 `LXY-自动`；`VPS` 默认选 `VPS-自动`；`AI` 默认选 `VPS`。
+| 分组 | 类型 | 可选项 | 默认 |
+|---|---|---|---|
+| 节点选择 | 手动选择 | 自动选择、VPS、单个机场节点、🎯 全球直连 | 自动选择 |
+| 自动选择 | 自动测速 | 仅机场节点 | 自动测速 |
+| VPS | 手动选择 | VPS-自动、单个 VPS 节点 | VPS-自动 |
+| VPS-自动 | 自动测速 | 仅自建 VPS 节点 | 自动测速 |
+| AI工具 | 手动选择 | VPS、节点选择 | VPS |
+| 漏网之鱼 | 手动选择 | 节点选择、自动选择、🎯 全球直连 | 节点选择 |
+| 🎯 全球直连 | 手动选择 | direct | direct |
+| GLOBAL | 手动选择 | 节点选择、自动选择、AI工具、VPS、🎯 全球直连 | 节点选择 |
+
+- `自动选择` 保留香港机场节点，`VPS-自动` 只含组合中的自建节点。
+- 固定 AI 使用某个 VPS：在 `AI工具` 保持选择 `VPS`，再到 `VPS` 组选择具体节点。
+- 普通国外流量也改走 VPS：在 `节点选择` 选择 `VPS`；机场自动测速池仍保持隔离。
 - 任一节点池为空、来源识别失败、同名不同配置或拨号依赖环路时，脚本报错并停止输出；不会自动直连。
 
 保存成功后，把 **Sub-Store 生成文件的下载链接**导入兼容 sing-box 1.14.2 内核的客户端。
@@ -58,4 +69,10 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 
 ## DNS 更新
 
-已采用作者方案，替换上一版的未知 DNS 国内优先：国内及 FakeIP 排除规则按作者列表处理，未知 A 先经 Google 评估，国内响应转阿里，其余按 FakeIP 规则处理。仅用 IPv4 FakeIP，继续返回空 AAAA 和拒绝 IPv6。AI 业务仍默认走 VPS；国外真实 DNS 查询使用作者的 Google，经 LXY。
+已采用作者方案，替换上一版的未知 DNS 国内优先：国内及 FakeIP 排除规则按作者列表处理，未知 A 先经 Google 评估，国内响应转阿里，其余按 FakeIP 规则处理。仅用 IPv4 FakeIP，继续返回空 AAAA 和拒绝 IPv6。AI 业务仍默认走 VPS；国外真实 DNS 查询使用作者的 Google，经节点选择。
+
+## 从旧分组升级
+
+模板地址及脚本参数保持原样。在 Sub-Store 文件管理中同时刷新远程 JSON 模板和 `inject-nodes.js`，预览确认以上八个分组后保存，再更新客户端的生成文件链接。不要在已注入的 JSON 上重复运行脚本。新的缓存 ID 用于避开旧分组选择；首次导入使用表中的默认值。
+
+作者 DNS、IPv4、UDP443 拒绝以及三端入站配置保持原有逻辑。Global 模式通过 `GLOBAL` 选择出口；Direct 模式使用 `🎯 全球直连`。DNS Google 的代理出口映射为 `节点选择`。

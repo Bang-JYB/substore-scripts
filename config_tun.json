@@ -7,7 +7,7 @@
     "cache_file": {
       "enabled": true,
       "path": "cache.db",
-      "cache_id": "config_tun-ipv4-author-dns",
+      "cache_id": "config_tun-ipv4-author-dns-groups",
       "store_dns": true,
       "store_fakeip": true
     },
@@ -48,7 +48,7 @@
         "tag": "google",
         "type": "https",
         "server": "8.8.8.8",
-        "detour": "LXY"
+        "detour": "节点选择"
       },
       {
         "tag": "fakeip",
@@ -160,16 +160,18 @@
   "outbounds": [
     {
       "type": "selector",
-      "tag": "LXY",
+      "tag": "节点选择",
       "outbounds": [
-        "LXY-自动"
+        "自动选择",
+        "VPS",
+        "🎯 全球直连"
       ],
-      "default": "LXY-自动",
+      "default": "自动选择",
       "interrupt_exist_connections": false
     },
     {
       "type": "urltest",
-      "tag": "LXY-自动",
+      "tag": "自动选择",
       "outbounds": [],
       "url": "https://www.gstatic.com/generate_204",
       "interval": "30m",
@@ -198,11 +200,45 @@
     },
     {
       "type": "selector",
-      "tag": "AI",
+      "tag": "AI工具",
       "outbounds": [
-        "VPS"
+        "VPS",
+        "节点选择"
       ],
       "default": "VPS",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "selector",
+      "tag": "漏网之鱼",
+      "outbounds": [
+        "节点选择",
+        "自动选择",
+        "🎯 全球直连"
+      ],
+      "default": "节点选择",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "selector",
+      "tag": "🎯 全球直连",
+      "outbounds": [
+        "direct"
+      ],
+      "default": "direct",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "selector",
+      "tag": "GLOBAL",
+      "outbounds": [
+        "节点选择",
+        "自动选择",
+        "AI工具",
+        "VPS",
+        "🎯 全球直连"
+      ],
+      "default": "节点选择",
       "interrupt_exist_connections": false
     },
     {
@@ -243,18 +279,18 @@
       },
       {
         "clash_mode": "Direct",
-        "outbound": "direct"
+        "outbound": "🎯 全球直连"
       },
       {
         "clash_mode": "Global",
-        "outbound": "LXY"
+        "outbound": "GLOBAL"
       },
       {
         "rule_set": [
           "ai-extra",
           "geosite-ai"
         ],
-        "outbound": "AI"
+        "outbound": "AI工具"
       },
       {
         "rule_set": [
@@ -263,13 +299,13 @@
           "geosite-github",
           "geosite-telegram"
         ],
-        "outbound": "LXY"
+        "outbound": "节点选择"
       },
       {
         "domain_suffix": [
           "cn"
         ],
-        "outbound": "direct"
+        "outbound": "🎯 全球直连"
       },
       {
         "rule_set": [
@@ -280,11 +316,11 @@
           "geosite-steam-cn",
           "geosite-games-cn"
         ],
-        "outbound": "direct"
+        "outbound": "🎯 全球直连"
       },
       {
         "rule_set": "geosite-foreign",
-        "outbound": "LXY"
+        "outbound": "节点选择"
       },
       {
         "action": "resolve",
@@ -292,7 +328,7 @@
       },
       {
         "rule_set": "geoip-cn",
-        "outbound": "direct"
+        "outbound": "🎯 全球直连"
       }
     ],
     "rule_set": [
@@ -509,7 +545,7 @@
         "update_interval": "1d"
       }
     ],
-    "final": "LXY",
+    "final": "漏网之鱼",
     "default_domain_resolver": {
       "server": "ali",
       "strategy": "ipv4_only"

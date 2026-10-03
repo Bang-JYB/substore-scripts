@@ -13,14 +13,30 @@
 
 ## 分流策略
 
-- `LXY-自动` 只测速机场节点；`VPS-自动` 单独测速自建节点，AI 默认走 VPS。桌面测速间隔 30 分钟，安卓 1 小时。
-- AI 自定义域名和 AI 规则集优先走 `AI`；Google、YouTube、GitHub、Telegram、明确国外和未知流量走 `LXY`。
+- `自动选择` 只测速机场节点；`VPS-自动` 只测速自建节点。桌面测速间隔 30 分钟，安卓 1 小时。
+- `VPS` 是手动选择组，默认 `VPS-自动`；固定 VPS 节点只需在这里选择。`AI工具` 默认 `VPS`，`节点选择` 也可切换到同一 `VPS` 组。
+- AI 自定义域名和 AI 规则集优先走 `AI工具`；Google、YouTube、GitHub、Telegram和明确国外流量走 `节点选择`；未知流量走 `漏网之鱼`，默认跟随 `节点选择`。
 - `.cn`、国内域名及国内 IP 直连；国内 Apple/Microsoft/Steam/游戏和 OneDrive 直连。
-- DNS 沿用作者模板：阿里/腾讯/本地/hosts/Google + IPv4 FakeIP，Google 经 LXY。拒绝 HTTPS/SVCB，开启乐观缓存；国内和 FakeIP 排除域名按作者过滤表处理，未知 A 查询先由 Google 评估响应，国内响应转阿里，其余进入 FakeIP。AI 业务流量仍按路由走 VPS。
+- DNS 沿用作者模板：阿里/腾讯/本地/hosts/Google + IPv4 FakeIP，Google 经节点选择。拒绝 HTTPS/SVCB，开启乐观缓存；国内和 FakeIP 排除域名按作者过滤表处理，未知 A 查询先由 Google 评估响应，国内响应转阿里，其余进入 FakeIP。AI 业务流量仍按路由走 VPS。
 - 仅按端口阻断 UDP 443；这条规则在 Direct/Global 模式也优先生效。TCP 443、STUN 和其他 UDP 不因它被拒绝。
 - 规则集通过 `hc-direct` 直连下载，默认使用 jsDelivr CDN；不依赖 gh-proxy。启动需要规则源可达，之后可使用已缓存规则。
 - DNS `ipv4_only`、空 AAAA、IPv4 TUN、IPv6 流量拒绝；节点域名用直连 IPv4 DNS，IPv6 字面地址服务器过滤。
 - 空机场/VPS 池停止生成；同配置去重、保留名称重映射、拨号依赖校验和环路保护。不会自动把 AI 改为直连。
+
+## 分组与选择
+
+| 分组 | 类型 | 可选项 | 默认 |
+|---|---|---|---|
+| 节点选择 | 手动选择 | 自动选择、VPS、单个机场节点、🎯 全球直连 | 自动选择 |
+| 自动选择 | 自动测速 | 仅机场节点 | 自动测速 |
+| VPS | 手动选择 | VPS-自动、单个 VPS 节点 | VPS-自动 |
+| VPS-自动 | 自动测速 | 仅自建 VPS 节点 | 自动测速 |
+| AI工具 | 手动选择 | VPS、节点选择 | VPS |
+| 漏网之鱼 | 手动选择 | 节点选择、自动选择、🎯 全球直连 | 节点选择 |
+| 🎯 全球直连 | 手动选择 | direct | direct |
+| GLOBAL | 手动选择 | 节点选择、自动选择、AI工具、VPS、🎯 全球直连 | 节点选择 |
+
+`VPS` 订阅内部名称与客户端的 `VPS` 策略组是不同概念；来源参数仍为 `vps_name=VPS`。机场测速不会因手动选择 VPS 而混入 VPS；AI 与普通国外流量都选 VPS 时，共享该组的手动选择。
 
 ## 来源识别
 
@@ -56,7 +72,7 @@ Windows PowerShell 可先设置 `$env:SING_BOX = 'C:\path\sing-box.exe'`。测�
 
 ## 参考
 
-DNS 源自 [作者 windows.json](https://github.com/qichiyuhub/rule/blob/main/config/singbox/1.14X/windows.json)，三端采用同一套逻辑。适配包括：作者“默认代理”映射为 `LXY`，DNS 规则集加 `dns-` 前缀以保持业务路由规则不变，作者的批量规则标签展开为官方内核支持的单条定义，规则源去掉 gh-proxy 并通过直连 CDN 下载；额外保留空 AAAA 和 IPv6 拒绝。作者的 Google、FakeIP、evaluate、响应匹配、ECS、TTL 和缓存参数均保留。
+DNS 源自 [作者 windows.json](https://github.com/qichiyuhub/rule/blob/main/config/singbox/1.14X/windows.json)，三端采用同一套逻辑。适配包括：作者“默认代理”映射为 `节点选择`，DNS 规则集加 `dns-` 前缀以保持业务路由规则不变，作者的批量规则标签展开为官方内核支持的单条定义，规则源去掉 gh-proxy 并通过直连 CDN 下载；额外保留空 AAAA 和 IPv6 拒绝。作者的 Google、FakeIP、evaluate、响应匹配、ECS、TTL 和缓存参数均保留。
 
 沿用你上传模板的 AI 域名补充列表和 [qichiyuhub/rule 的 Sub-Store 模板思路](https://github.com/qichiyuhub/rule/blob/main/config/singbox/1.14X/z-substore-scripts.md)，重写节点注入以支持组合来源识别和空池保护。
 

@@ -31,11 +31,11 @@ try {config = JSON.parse(typeof $content !== 'undefined' ? $content : $files[0])
 catch (_) {throw new Error('文件源必须是仓库中的三端 JSON 模板');}
 if (!config || !Array.isArray(config.outbounds)) throw new Error('模板缺少 outbounds');
 // 每次从原始模板构建；防止误接在旧 Xream 注入之后，造成重复或混池。
-const groups = ['LXY','LXY-自动','VPS','VPS-自动','AI'];
+const groups = ['节点选择','自动选择','VPS','VPS-自动','AI工具','漏网之鱼','🎯 全球直连','GLOBAL'];
 const reserved = new Set([...groups,'direct']);
 for (const tag of groups) if (config.outbounds.filter(o=>o.tag===tag).length !== 1) throw new Error('模板策略组缺失或重名：' + tag);
 if (config.outbounds.some(o=>!reserved.has(o.tag))) throw new Error('请移除旧注入脚本，并使用原始 JSON 模板');
-for (const tag of ['LXY-自动','VPS-自动']) {
+for (const tag of ['自动选择','VPS-自动']) {
   const group=config.outbounds.find(o=>o.tag===tag);
   if (group.type !== 'urltest' || array(group.outbounds).length) throw new Error('请使用未注入的测速模板');
 }
@@ -103,8 +103,17 @@ for (const node of [...nodes,...endpoints]) {
     node.detour=target;
   }
 }
-for (const [tag,pool] of [['LXY', ['LXY-自动',...airport]],['LXY-自动',airport],
-  ['VPS',['VPS-自动',...vps]],['VPS-自动',vps],['AI',['VPS']]]) {
+// 机场与 VPS 分开测速；VPS 手动组共享给节点选择与 AI，避免重复铺节点。
+for (const [tag,pool] of [
+  ['节点选择',['自动选择','VPS',...airport,'🎯 全球直连']],
+  ['自动选择',airport],
+  ['VPS',['VPS-自动',...vps]],
+  ['VPS-自动',vps],
+  ['AI工具',['VPS','节点选择']],
+  ['漏网之鱼',['节点选择','自动选择','🎯 全球直连']],
+  ['🎯 全球直连',['direct']],
+  ['GLOBAL',['节点选择','自动选择','AI工具','VPS','🎯 全球直连']]
+]) {
   const group=config.outbounds.find(o=>o.tag===tag);
   group.outbounds=pool;
   if (group.type==='selector') group.default=pool[0];
