@@ -16,7 +16,7 @@
 - `LXY-自动` 只测速机场节点；`VPS-自动` 单独测速自建节点，AI 默认走 VPS。桌面测速间隔 30 分钟，安卓 1 小时。
 - AI 自定义域名和 AI 规则集优先走 `AI`；Google、YouTube、GitHub、Telegram、明确国外和未知流量走 `LXY`。
 - `.cn`、国内域名及国内 IP 直连；国内 Apple/Microsoft/Steam/游戏和 OneDrive 直连。
-- 明确 AI 域名使用经 AI/VPS 的国外 DoH；明确国外域名使用经 LXY 的国外 DoH；国内和未知域名先使用国内直连 DoH。
+- DNS 沿用作者模板：阿里/腾讯/本地/hosts/Google + IPv4 FakeIP，Google 经 LXY。拒绝 HTTPS/SVCB，开启乐观缓存；国内和 FakeIP 排除域名按作者过滤表处理，未知 A 查询先由 Google 评估响应，国内响应转阿里，其余进入 FakeIP。AI 业务流量仍按路由走 VPS。
 - 仅按端口阻断 UDP 443；这条规则在 Direct/Global 模式也优先生效。TCP 443、STUN 和其他 UDP 不因它被拒绝。
 - 规则集通过 `hc-direct` 直连下载，默认使用 jsDelivr CDN；不依赖 gh-proxy。启动需要规则源可达，之后可使用已缓存规则。
 - DNS `ipv4_only`、空 AAAA、IPv4 TUN、IPv6 流量拒绝；节点域名用直连 IPv4 DNS，IPv6 字面地址服务器过滤。
@@ -36,7 +36,7 @@ JSON 是空节点模板，须经 Sub-Store 文件脚本生成后再导入客户�
 
 TUN 采用通用字段，不写死接口名称，不使用 Linux 专属 `auto_redirect`。桌面非 TUN 保留自动系统代理；macOS 权限及客户端能力会影响自动设置。三平台运行仍需在你的真实设备上验证。
 
-未知 DNS 先查国内是按你的偏好设置，未识别的国外域名也遵循该默认值。测速延迟不能代表吞吐或 AI 服务可用性。客户端更新 Sub-Store 订阅的链接发生在新配置运行之前，本配置不能修复更新链路本身。
+DNS 已按你最新要求采用作者方案，取代上一版“未知 DNS 国内优先”。FakeIP 范围为 `198.19.0.0/16`，无 IPv6 FakeIP；增加 `store_fakeip` 保留映射并使用新的缓存 ID。测速延迟不能代表吞吐或 AI 服务可用性。客户端更新 Sub-Store 订阅的链接发生在新配置运行之前，本配置不能修复更新链路本身。
 
 ## 开发与验证
 
@@ -55,6 +55,8 @@ SING_BOX=/absolute/path/to/sing-box node test.mjs
 Windows PowerShell 可先设置 `$env:SING_BOX = 'C:\path\sing-box.exe'`。测试仅用虚构节点，不生成真实配置到公开仓库。验证结果见 [VALIDATION.md](VALIDATION.md)。
 
 ## 参考
+
+DNS 源自 [作者 windows.json](https://github.com/qichiyuhub/rule/blob/main/config/singbox/1.14X/windows.json)，三端采用同一套逻辑。适配包括：作者“默认代理”映射为 `LXY`，DNS 规则集加 `dns-` 前缀以保持业务路由规则不变，作者的批量规则标签展开为官方内核支持的单条定义，规则源去掉 gh-proxy 并通过直连 CDN 下载；额外保留空 AAAA 和 IPv6 拒绝。作者的 Google、FakeIP、evaluate、响应匹配、ECS、TTL 和缓存参数均保留。
 
 沿用你上传模板的 AI 域名补充列表和 [qichiyuhub/rule 的 Sub-Store 模板思路](https://github.com/qichiyuhub/rule/blob/main/config/singbox/1.14X/z-substore-scripts.md)，重写节点注入以支持组合来源识别和空池保护。
 

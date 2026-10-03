@@ -87,7 +87,7 @@ for (const record of records(combined)) {
     while (used.has(tag)) tag=base + ' [' + suffix++ + ']';
     used.add(tag); identities.set(id,tag); node.tag=tag;
     delete node.domain_strategy; delete node.inet6_bind_address;
-    node.domain_resolver={server:'dns-direct',strategy:'ipv4_only'};
+    node.domain_resolver={server:'ali',strategy:'ipv4_only'};
     (record.endpoint ? endpoints : nodes).push(node);
     (isVps ? vps : airport).push(tag);
   } else duplicates++;

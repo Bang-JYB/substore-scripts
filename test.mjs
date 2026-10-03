@@ -37,6 +37,11 @@ function core(c,label){
   assert.equal(r.status,0,label+': '+r.stderr+r.stdout);coreChecks++;
 }
 function matches(r,p){
+  if(r.type==='logical'){
+    const matched=r.mode==='or'?r.rules.some(x=>matches(x,p)):r.rules.every(x=>matches(x,p));
+    return r.invert?!matched:matched;
+  }
+  if(r.invert)return !matches({...r,invert:false},p);
   for(const key of ['network','port','protocol','ip_version','clash_mode','query_type'])
     if(r[key]!==undefined&&!array(r[key]).includes(p[key]))return false;
   if(r.ip_is_private&&!p.ip_is_private)return false;
@@ -49,7 +54,19 @@ function route(c,p){
     if(matches(r,p))return r.outbound||r.action;}
   return c.route.final;
 }
-function dns(c,p){for(const r of c.dns.rules)if(matches(r,p))return r.server||r.action;return c.dns.final;}
+// Model evaluate as non-terminal; response membership is supplied explicitly by each scenario.
+function dnsResult(c,p){
+ const evaluations=[];let evaluated=false;
+ for(const r of c.dns.rules){
+  if(r.match_response&&!evaluated)continue;
+  const packet=r.match_response?{...p,rule_set:p.response_rule_set||[]}:p;
+  if(!matches(r,packet))continue;
+  if(r.action==='evaluate'){evaluations.push(r.server);evaluated=true;continue;}
+  return {result:r.server||r.action,evaluations};
+ }
+ return {result:c.dns.final,evaluations};
+}
+function dns(c,p){return dnsResult(c,p).result;}
 try{
 for(const filename of files){
  const {c,calls}=await run(filename);results.push(c);
@@ -85,10 +102,25 @@ for(const filename of files){
  t('private IP',()=>assert.equal(route(c,{ip_is_private:true}),'direct'));
  t('foreign',()=>assert.equal(route(c,{rule_set:['geosite-foreign']}),'LXY'));
  t('unknown route',()=>assert.equal(route(c,{}),'LXY'));
- t('unknown DNS first domestic',()=>assert.equal(dns(c,{query_type:'A'}),'dns-direct'));
- t('CN DNS',()=>assert.equal(dns(c,{domain:'test.cn',query_type:'A'}),'dns-direct'));
- t('foreign DNS',()=>assert.equal(dns(c,{query_type:'A',rule_set:['geosite-google']}),'dns-remote'));
- t('AI DNS',()=>assert.equal(dns(c,{query_type:'A',rule_set:['ai-extra']}),'dns-ai'));
+ t('author DNS servers',()=>{assert.deepEqual(c.dns.servers.map(s=>s.tag),['local','ali','tx','google','fakeip','hosts']);assert.equal(c.dns.servers.find(s=>s.tag==='ali').server,'223.5.5.5');assert.equal(c.dns.servers.find(s=>s.tag==='google').server,'8.8.8.8');assert.equal(c.dns.servers.find(s=>s.tag==='google').detour,'LXY');assert.equal(c.dns.servers.find(s=>s.tag==='tx').domain_resolver,'hosts');});
+ t('IPv4 FakeIP only',()=>{const s=c.dns.servers.find(s=>s.tag==='fakeip');assert.equal(s.inet4_range,'198.19.0.0/16');assert(!s.inet6_range);});
+ t('author cache',()=>{assert.equal(c.dns.cache_capacity,8192);assert.equal(c.dns.optimistic.enabled,true);assert.equal(c.dns.reverse_mapping,true);assert.equal(c.experimental.cache_file.store_fakeip,true);});
+ t('bootstrap avoids FakeIP',()=>{assert.equal(c.route.default_domain_resolver.server,'ali');assert.equal(c.http_clients[0].domain_resolver.server,'ali');assert(c.outbounds.filter(o=>o.server).every(o=>o.domain_resolver.server==='ali'));});
+ t('author DNS rule-set references',()=>{const tags=new Set(c.route.rule_set.map(r=>r.tag));function walk(v){if(Array.isArray(v))v.forEach(walk);else if(v&&typeof v==='object')for(const[k,x]of Object.entries(v)){if(k==='rule_set')array(x).forEach(t=>assert(tags.has(t)));walk(x);}}walk(c.dns);});
+ t('CN DNS',()=>assert.equal(dns(c,{query_type:'A',rule_set:['dns-geosite-cn']}),'ali'));
+ t('private DNS',()=>assert.equal(dns(c,{query_type:'A',rule_set:['dns-geosite-private']}),'ali'));
+ t('domestic FakeIP exclusion',()=>assert.equal(dns(c,{query_type:'A',rule_set:['dns-fakeipfilter-cn']}),'ali'));
+ t('foreign FakeIP exclusion',()=>assert.equal(dns(c,{query_type:'A',rule_set:['dns-fakeipfilter-!cn']}),'google'));
+ t('unknown CN response evaluated then Ali',()=>assert.deepEqual(dnsResult(c,{query_type:'A',response_rule_set:['dns-geoip-cn']}),{result:'ali',evaluations:['google']}));
+ t('unknown foreign response evaluated then FakeIP',()=>assert.deepEqual(dnsResult(c,{query_type:'A'}),{result:'fakeip',evaluations:['google']}));
+ t('known foreign FakeIP without evaluation',()=>assert.deepEqual(dnsResult(c,{query_type:'A',rule_set:['dns-geosite-geolocation-!cn']}),{result:'fakeip',evaluations:[]}));
+ t('author TXT default',()=>assert.equal(dns(c,{query_type:'TXT'}),'google'));
+ t('HTTPS and SVCB rejected in all modes',()=>{for(const query_type of ['HTTPS','SVCB'])for(const clash_mode of ['Rule','Direct','Global'])assert.equal(dns(c,{query_type,clash_mode}),'reject');});
+ t('Direct DNS',()=>assert.equal(dns(c,{query_type:'A',clash_mode:'Direct'}),'ali'));
+ t('Global DNS',()=>assert.equal(dns(c,{query_type:'A',clash_mode:'Global'}),'fakeip'));
+ t('author AI DNS alongside VPS traffic',()=>{assert.equal(dns(c,{query_type:'A',rule_set:['ai-extra','dns-geosite-geolocation-!cn']}),'fakeip');assert.equal(route(c,{rule_set:['ai-extra']}),'AI');});
+ t('FakeIP TTL',()=>assert.equal(c.dns.rules.find(r=>r.server==='fakeip'&&r.rewrite_ttl).rewrite_ttl,1));
+ t('author evaluation ECS and timeout',()=>{const r=c.dns.rules.find(r=>r.action==='evaluate');assert.equal(r.client_subnet,'223.5.5.0/24');assert.equal(r.timeout,'2s');assert.equal(r.server,'google');});
  core(c,filename);
  const cases=[
   ['explicit combination type',async()=>{const r=await run(filename,{type:'组合订阅'});assert.equal(r.calls[0].type,'collection');}],

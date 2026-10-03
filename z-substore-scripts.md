@@ -46,7 +46,7 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 - 任一节点池为空、来源识别失败、同名不同配置或拨号依赖环路时，脚本报错并停止输出；不会自动直连。
 
 保存成功后，把 **Sub-Store 生成文件的下载链接**导入兼容 sing-box 1.14.2 内核的客户端。
-三份模板使用相同的分流策略，区别是入站方式和桌面/安卓默认测速频率。
+三份模板使用相同的分流和作者 DNS 策略，区别是入站方式和桌面/安卓默认测速频率。DNS 包含 Google 响应评估、IPv4 FakeIP、HTTPS/SVCB 拒绝和乐观缓存；更新时请同时刷新远程模板及文件脚本，再预览、保存。
 
 ## 设备设置
 
@@ -55,3 +55,7 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 - **Android**：使用 `config_android.json`，由兼容客户端创建系统 VPN；同意 Android VPN 授权。
 
 固定 IPv4 包括：IPv4 TUN 地址、IPv4 解析、空 AAAA、拒绝进入 sing-box 的 IPv6 流量、过滤 IPv6 字面地址服务器，以及清理 WireGuard 的 IPv6 地址。它不会修改系统全局 IPv6 设置；没有进入代理/VPN 的流量不受本配置控制。
+
+## DNS 更新
+
+已采用作者方案，替换上一版的未知 DNS 国内优先：国内及 FakeIP 排除规则按作者列表处理，未知 A 先经 Google 评估，国内响应转阿里，其余按 FakeIP 规则处理。仅用 IPv4 FakeIP，继续返回空 AAAA 和拒绝 IPv6。AI 业务仍默认走 VPS；国外真实 DNS 查询使用作者的 Google，经 LXY。

@@ -7,8 +7,9 @@
     "cache_file": {
       "enabled": true,
       "path": "cache.db",
-      "cache_id": "config_tun-ipv4",
-      "store_dns": true
+      "cache_id": "config_tun-ipv4-author-dns",
+      "store_dns": true,
+      "store_fakeip": true
     },
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
@@ -20,7 +21,7 @@
       "tag": "hc-direct",
       "detour": "direct",
       "domain_resolver": {
-        "server": "dns-direct",
+        "server": "ali",
         "strategy": "ipv4_only"
       }
     }
@@ -28,22 +29,41 @@
   "dns": {
     "servers": [
       {
-        "type": "https",
-        "tag": "dns-direct",
-        "server": "223.5.5.5",
-        "detour": "direct"
+        "tag": "local",
+        "type": "local",
+        "prefer_go": true
       },
       {
+        "tag": "ali",
         "type": "https",
-        "tag": "dns-remote",
-        "server": "1.1.1.1",
+        "server": "223.5.5.5"
+      },
+      {
+        "tag": "tx",
+        "type": "https",
+        "server": "doh.pub",
+        "domain_resolver": "hosts"
+      },
+      {
+        "tag": "google",
+        "type": "https",
+        "server": "8.8.8.8",
         "detour": "LXY"
       },
       {
-        "type": "https",
-        "tag": "dns-ai",
-        "server": "1.1.1.1",
-        "detour": "AI"
+        "tag": "fakeip",
+        "type": "fakeip",
+        "inet4_range": "198.19.0.0/16"
+      },
+      {
+        "type": "hosts",
+        "tag": "hosts",
+        "predefined": {
+          "doh.pub": [
+            "1.12.12.21",
+            "120.53.53.53"
+          ]
+        }
       }
     ],
     "rules": [
@@ -53,55 +73,75 @@
         "rcode": "NOERROR"
       },
       {
+        "query_type": [
+          "HTTPS",
+          "SVCB"
+        ],
+        "action": "reject"
+      },
+      {
         "clash_mode": "Direct",
-        "server": "dns-direct"
+        "server": "ali"
       },
       {
         "clash_mode": "Global",
-        "server": "dns-remote"
+        "server": "fakeip"
       },
       {
         "rule_set": [
-          "ai-extra",
-          "geosite-ai"
+          "dns-fakeipfilter-cn",
+          "dns-geosite-cn",
+          "dns-geosite-microsoft@cn",
+          "dns-geosite-apple@cn",
+          "dns-geosite-private"
         ],
-        "server": "dns-ai"
+        "server": "ali"
       },
       {
-        "rule_set": [
-          "geosite-youtube",
-          "geosite-google",
-          "geosite-github",
-          "geosite-telegram"
-        ],
-        "server": "dns-remote"
+        "rule_set": "dns-fakeipfilter-!cn",
+        "server": "google"
       },
       {
-        "domain_suffix": [
-          "cn"
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "query_type": [
+              "A",
+              "AAAA"
+            ]
+          },
+          {
+            "rule_set": "dns-geosite-geolocation-!cn",
+            "invert": true
+          }
         ],
-        "server": "dns-direct"
+        "action": "evaluate",
+        "server": "google",
+        "client_subnet": "223.5.5.0/24",
+        "timeout": "2s"
       },
       {
-        "rule_set": [
-          "geosite-cn",
-          "geosite-apple-cn",
-          "geosite-microsoft-cn",
-          "geosite-onedrive",
-          "geosite-steam-cn",
-          "geosite-games-cn"
-        ],
-        "server": "dns-direct"
+        "match_response": true,
+        "rule_set": "dns-geoip-cn",
+        "server": "ali"
       },
       {
-        "rule_set": "geosite-foreign",
-        "server": "dns-remote"
+        "query_type": [
+          "A",
+          "AAAA"
+        ],
+        "server": "fakeip",
+        "rewrite_ttl": 1
       }
     ],
-    "final": "dns-direct",
+    "final": "google",
     "strategy": "ipv4_only",
-    "reverse_mapping": true,
-    "cache_capacity": 8192
+    "cache_capacity": 8192,
+    "optimistic": {
+      "enabled": true
+    },
+    "reverse_mapping": true
   },
   "inbounds": [
     {
@@ -169,7 +209,7 @@
       "type": "direct",
       "tag": "direct",
       "domain_resolver": {
-        "server": "dns-direct",
+        "server": "ali",
         "strategy": "ipv4_only"
       }
     }
@@ -403,11 +443,75 @@
         "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/geolocation-!cn.srs",
         "http_client": "hc-direct",
         "update_interval": "1d"
+      },
+      {
+        "tag": "dns-fakeipfilter-cn",
+        "type": "remote",
+        "format": "source",
+        "url": "https://testingcf.jsdelivr.net/gh/qichiyuhub/rule@main/rules/fakeipfilter-cn.json",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "dns-fakeipfilter-!cn",
+        "type": "remote",
+        "format": "source",
+        "url": "https://testingcf.jsdelivr.net/gh/qichiyuhub/rule@main/rules/fakeipfilter-!cn.json",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "dns-geosite-microsoft@cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-microsoft@cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "dns-geosite-apple@cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-apple@cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "dns-geosite-geolocation-!cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-geolocation-!cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "dns-geosite-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "dns-geosite-private",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-private.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
+      },
+      {
+        "tag": "dns-geoip-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geoip@rule-set/geoip-cn.srs",
+        "http_client": "hc-direct",
+        "update_interval": "1d"
       }
     ],
     "final": "LXY",
     "default_domain_resolver": {
-      "server": "dns-direct",
+      "server": "ali",
       "strategy": "ipv4_only"
     },
     "default_http_client": "hc-direct",
