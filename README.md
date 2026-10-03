@@ -19,7 +19,7 @@
 - `.cn`、国内域名及国内 IP 直连；国内 Apple/Microsoft/Steam/游戏和 OneDrive 直连。
 - DNS 沿用作者模板：阿里/腾讯/本地/hosts/Google + IPv4 FakeIP，Google 经节点选择。拒绝 HTTPS/SVCB，开启乐观缓存；国内和 FakeIP 排除域名按作者过滤表处理，未知 A 查询先由 Google 评估响应，国内响应转阿里，其余进入 FakeIP。AI 业务流量仍按路由走 VPS。
 - 仅按端口阻断 UDP 443；这条规则在 Direct/Global 模式也优先生效。TCP 443、STUN 和其他 UDP 不因它被拒绝。
-- 规则集通过 `hc-direct` 直连下载，默认使用 jsDelivr CDN；不依赖 gh-proxy。启动需要规则源可达，之后可使用已缓存规则。
+- 原有 21 份外部规则已完整内置为 `inline`，加上 AI 自定义列表共 22 份。客户端启动不下载规则，无需 CDN、规则缓存或额外文件；不会因规则源连接重置而卡住启动。
 - DNS `ipv4_only`、空 AAAA、IPv4 TUN、IPv6 流量拒绝；节点域名用直连 IPv4 DNS，IPv6 字面地址服务器过滤。
 - 空机场/VPS 池停止生成；同配置去重、保留名称重映射、拨号依赖校验和环路保护。不会自动把 AI 改为直连。
 
@@ -54,6 +54,14 @@ TUN 采用通用字段，不写死接口名称，不使用 Linux 专属 `auto_re
 
 DNS 已按你最新要求采用作者方案，取代上一版“未知 DNS 国内优先”。FakeIP 范围为 `198.19.0.0/16`，无 IPv6 FakeIP；增加 `store_fakeip` 保留映射并使用新的缓存 ID。测速延迟不能代表吞吐或 AI 服务可用性。客户端更新 Sub-Store 订阅的链接发生在新配置运行之前，本配置不能修复更新链路本身。
 
+## 规则快照与更新
+
+2026-10-03：将原配置的 21 份规则源完整解码后内置，保留全部规则标签和匹配数据，没有删减国内 IP、国外域名或作者 DNS 过滤表。三个模板每份约 5.9 MB（十进制），生成后的配置也会变大。
+
+客户端不再每天独立下载规则。更新规则需要重新从上游取得数据、使用官方内核解码并更新三个模板及 `RULE_SOURCES.json`；随后刷新 Sub-Store 远程模板、预览保存并更新客户端。只更新客户端已有的 Sub-Store 链接，不会自动拉取上游规则的最新数据。
+
+[规则来源与 SHA-256](RULE_SOURCES.json)记录原始文件及内置匹配数据的摘要。[第三方来源说明](THIRD_PARTY.md)保留来源及适用声明。
+
 ## 开发与验证
 
 无 npm 依赖，Node.js 18+：
@@ -72,7 +80,7 @@ Windows PowerShell 可先设置 `$env:SING_BOX = 'C:\path\sing-box.exe'`。测�
 
 ## 参考
 
-DNS 源自 [作者 windows.json](https://github.com/qichiyuhub/rule/blob/main/config/singbox/1.14X/windows.json)，三端采用同一套逻辑。适配包括：作者“默认代理”映射为 `节点选择`，DNS 规则集加 `dns-` 前缀以保持业务路由规则不变，作者的批量规则标签展开为官方内核支持的单条定义，规则源去掉 gh-proxy 并通过直连 CDN 下载；额外保留空 AAAA 和 IPv6 拒绝。作者的 Google、FakeIP、evaluate、响应匹配、ECS、TTL 和缓存参数均保留。
+DNS 源自 [作者 windows.json](https://github.com/qichiyuhub/rule/blob/main/config/singbox/1.14X/windows.json)，三端采用同一套逻辑。适配包括：作者“默认代理”映射为 `节点选择`，DNS 规则集加 `dns-` 前缀以保持业务路由规则不变，作者的批量规则标签展开为官方内核支持的单条定义，规则数据完整内置以免启动依赖外部下载；额外保留空 AAAA 和 IPv6 拒绝。作者的 Google、FakeIP、evaluate、响应匹配、ECS、TTL 和缓存参数均保留。
 
 沿用你上传模板的 AI 域名补充列表和 [qichiyuhub/rule 的 Sub-Store 模板思路](https://github.com/qichiyuhub/rule/blob/main/config/singbox/1.14X/z-substore-scripts.md)，重写节点注入以支持组合来源识别和空池保护。
 

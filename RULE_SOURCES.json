@@ -1,0 +1,175 @@
+{
+  "snapshot_date": "2026-10-03",
+  "description": "原配置使用的 21 份远程规则完整解码为内联 headless rules；保留标签和匹配内容，仅删除远程下载字段。",
+  "decoder": "official sing-box 1.14.2 rule-set decompile",
+  "rule_sets": [
+    {
+      "tag": "geosite-ai",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/category-ai-!cn.srs",
+      "source_sha256": "ff4686ba249878f815f9f963e3b4da598a6686649006efeeb6a2c6f84abc5fdc",
+      "inline_rules_sha256": "e8ea5562aab5a3605a6ac6e2a278eb2a6b39229a7ed77d235846135273dc53ad",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs",
+      "source_sha256": "66f3c2324558f166b1ecb1237fdeac29f98af8b9e84d18f501c44445f97e25be",
+      "inline_rules_sha256": "656a6f92bbd5508b7475583a5648f95f8c284111d15b3dd9e6532c25dc209921",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geoip-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geoip/cn.srs",
+      "source_sha256": "ac82bac86a7f9f873b4e016765f9ee5afe0152da52049b72c16f459572c317ee",
+      "inline_rules_sha256": "1c5004bc2022d1936d81714d3e3a3091cb9a554f9cb5a6a6fd5be373588466eb",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-apple-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/apple-cn.srs",
+      "source_sha256": "7bcb786a9bd4b84f554d377b5bc768360ae2a069451daa944e25501fe21499c0",
+      "inline_rules_sha256": "841e136bf816e918a822ec2a704c83bdb5ba0d904b5cf7ac9304c6176b34a733",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-microsoft-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/microsoft@cn.srs",
+      "source_sha256": "a7821a17a8d109d3a9b45d3b12c164fc55f03cfb62894eff6ace5ddf9a9af965",
+      "inline_rules_sha256": "7bd0b3ca15b7d9b92f6f3645c990947b1fbf1a391387edf95a6892ea0e0b3aeb",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-onedrive",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/onedrive.srs",
+      "source_sha256": "ecf26c6c2f999cc409fd2053128e361b48c1d7cdce130056f3cd2a6a74b0251c",
+      "inline_rules_sha256": "486aff402f63d750fd180b80e3e9bef5727652953f0810b45d6ea3a6b4ec3852",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-steam-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/steam@cn.srs",
+      "source_sha256": "270fca510678e1655157c06e5f3152c01846bb1130d0013848501819f34e552a",
+      "inline_rules_sha256": "e8f349ce73f0512d2c43dfd9dbda0ceb1b2c181f1d877393c61bf3edb9476cc7",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-games-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/category-games@cn.srs",
+      "source_sha256": "2907b54d7fc9f02c203f1bb1febb32f9dd25944975806c128af3f3b758bfb627",
+      "inline_rules_sha256": "b360bfb70ba78a8e52dee008b848c0149ad443f3e8b92cbf9245f5da231c41b9",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-youtube",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/youtube.srs",
+      "source_sha256": "ae9a576c046627c01bc1488f526775dfe919f1152c3ce6f75b678fce92498b3f",
+      "inline_rules_sha256": "f7709edaa902e06bd67ec61b85df9726c1fb00eba8954d3bc77195b3e538a5f8",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-google",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/google.srs",
+      "source_sha256": "1f1a046775fbf136da45ab4435cee9450e0b98cab1f429e79d54604f073f8b15",
+      "inline_rules_sha256": "bf0288d87ec431a5f3efb206b9185842adaa3c368e8728f1de3f17cb6ab148a5",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-github",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/github.srs",
+      "source_sha256": "494a462bee8e3dc865642a212213e37b90e022666da4f58bd0a512cefa2bc43b",
+      "inline_rules_sha256": "4557291d141c87758b1bd1d9340f77e973bf9ee1f66110fbe24ea4cb872d8325",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-telegram",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/telegram.srs",
+      "source_sha256": "30cd392b1d79b0569af077874b36c6892bf13a94dce0d8e4410c3b1976d62ea2",
+      "inline_rules_sha256": "5a261cadeaf47ba7d63433b664be79f682bcf97b65b163f4ee66b3d13789bb2a",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "geosite-foreign",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/geolocation-!cn.srs",
+      "source_sha256": "ef867b07e150cc605ff93047aeaba1d2b431c2e99ccedf3e7c9c483f002af3d5",
+      "inline_rules_sha256": "eb3911aca1444d707462c0d32d5c6466410d0b745444d3609cf84a4b380c48a4",
+      "source_version": 2,
+      "rule_count": 1
+    },
+    {
+      "tag": "dns-fakeipfilter-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/qichiyuhub/rule@main/rules/fakeipfilter-cn.json",
+      "source_sha256": "97a35dcab38a8a0247d0e27ea9f7e14517f8327058b8497697a13db0b360929a",
+      "inline_rules_sha256": "564337b11035412fd9acc1e77840e7c20309988964be5932b29880f52cd291cf",
+      "source_version": 3,
+      "rule_count": 3
+    },
+    {
+      "tag": "dns-fakeipfilter-!cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/qichiyuhub/rule@main/rules/fakeipfilter-!cn.json",
+      "source_sha256": "6429e4da7aff8e445d4293e91121fad9b9a723ec1bd5287ff34859bf77afbb46",
+      "inline_rules_sha256": "d274907df45acfe5636b5868574d6164833caaf3669148897217a5aa1ec0de33",
+      "source_version": 3,
+      "rule_count": 3
+    },
+    {
+      "tag": "dns-geosite-microsoft@cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-microsoft@cn.srs",
+      "source_sha256": "165e6d21cdf7589c54de859394b8fa134e1dfb2fccbd0aeb861e45fb8c636440",
+      "inline_rules_sha256": "7bd0b3ca15b7d9b92f6f3645c990947b1fbf1a391387edf95a6892ea0e0b3aeb",
+      "source_version": 1,
+      "rule_count": 1
+    },
+    {
+      "tag": "dns-geosite-apple@cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-apple@cn.srs",
+      "source_sha256": "682b0e0fe96628e32c943386e048b4b3f15c95d54949c455045725baa8497159",
+      "inline_rules_sha256": "ee208922b5c0557ddfa6027d7e85814f9702154093ec720d19a892966ebda029",
+      "source_version": 1,
+      "rule_count": 1
+    },
+    {
+      "tag": "dns-geosite-geolocation-!cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-geolocation-!cn.srs",
+      "source_sha256": "1a23dd9a81380727c02e60d97fde1ff5ebe3a4de46d4bb554d3da0d0a135717a",
+      "inline_rules_sha256": "62f1be15fe73319b4deb5fc463fc0f86d7bfd1c30f1d0a21cc56dd1f1b6e8436",
+      "source_version": 1,
+      "rule_count": 1
+    },
+    {
+      "tag": "dns-geosite-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-cn.srs",
+      "source_sha256": "2f4af0be08f2ff494a8fcdef992dc92a2267600ce26c9bba17421d1ce9a6715c",
+      "inline_rules_sha256": "fdad24055283d00d018b8051ef28adf4799403fcd389c92218eeceb2924808f2",
+      "source_version": 1,
+      "rule_count": 1
+    },
+    {
+      "tag": "dns-geosite-private",
+      "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-private.srs",
+      "source_sha256": "260491243e0266e5ba543f509ca7f13b07d6f4c2c26ade3f675ddea1661f3213",
+      "inline_rules_sha256": "a30da55c5dc262c48ed843856885bfaf36102995b618e056b2f33dd2895c1f24",
+      "source_version": 1,
+      "rule_count": 1
+    },
+    {
+      "tag": "dns-geoip-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geoip@rule-set/geoip-cn.srs",
+      "source_sha256": "ebee603fdf402314b44b9f653cdcf6d9cc9c41e84e2b3515e3123c5c920a93bc",
+      "inline_rules_sha256": "0f9f8e5f5cde1bd7a31372f76194bd33355810b1d33ed659de2550af6371814a",
+      "source_version": 1,
+      "rule_count": 1
+    }
+  ]
+}

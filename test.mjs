@@ -5,8 +5,12 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const files=['config_tun.json','config_pc.json','config_android.json'];
+const ruleSources=JSON.parse(fs.readFileSync(path.join(root,'RULE_SOURCES.json'),'utf8'));
+function canonical(v){if(Array.isArray(v))return v.map(canonical);if(v&&typeof v==='object')return Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])]));return v;}
+const ruleHash=rules=>createHash('sha256').update(JSON.stringify(canonical(rules))).digest('hex');
 const script=new vm.Script('(async()=>{\n'+fs.readFileSync(path.join(root,'inject-nodes.js'),'utf8')+'\n})()');
 const node=(tag,n,extra={})=>({type:'shadowsocks',tag,server:'node'+n+'.example.com',server_port:443,
   method:'aes-128-gcm',password:'fixture-password-'+n,...extra});
@@ -109,7 +113,10 @@ for(const filename of files){
  t('IPv4 TUN',()=>{for(const i of c.inbounds.filter(i=>i.type==='tun')){assert.deepEqual(i.address,['172.19.0.1/30']);assert.equal(i.stack,'mixed');assert.equal(i.strict_route,true);assert.equal(i.dns_mode,'hijack');assert(!i.interface_name);assert(!i.auto_redirect);}});
  t('non TUN system proxy',()=>{if(filename==='config_pc.json'){assert.equal(c.inbounds[0].listen,'127.0.0.1');assert.equal(c.inbounds[0].listen_port,7890);assert.equal(c.inbounds[0].set_system_proxy,true);}});
  t('IPv4 resolution',()=>{assert.equal(c.dns.strategy,'ipv4_only');assert(c.outbounds.filter(o=>o.server).every(o=>o.domain_resolver.strategy==='ipv4_only'));});
- t('direct rule download',()=>{assert.equal(c.http_clients[0].detour,'direct');assert.equal(c.route.default_http_client,'hc-direct');assert(c.route.rule_set.filter(r=>r.type==='remote').every(r=>r.http_client==='hc-direct'&&!r.url.includes('gh-proxy')));});
+ t('inline rule startup has no download dependency',()=>{assert.equal(c.route.rule_set.length,22);assert(c.route.rule_set.every(r=>r.type==='inline'&&r.rules.length));assert(c.route.rule_set.every(r=>!r.url&&!r.path&&!r.http_client&&!r.update_interval));});
+ t('original rule data preserved by digest',()=>{assert.equal(ruleSources.rule_sets.length,21);for(const source of ruleSources.rule_sets){const r=c.route.rule_set.find(r=>r.tag===source.tag);assert(r);assert.equal(r.rules.length,source.rule_count);assert.equal(ruleHash(r.rules),source.inline_rules_sha256);}});
+ t('DNS and routing rule references resolve',()=>{const tags=new Set(c.route.rule_set.map(r=>r.tag));assert.equal(tags.size,c.route.rule_set.length);function walk(v){if(Array.isArray(v))v.forEach(walk);else if(v&&typeof v==='object')for(const [k,x] of Object.entries(v)){if(k==='rule_set')array(x).forEach(tag=>assert(tags.has(tag)));walk(x);}}walk(c.dns.rules);walk(c.route.rules);});
+ t('direct HTTP client retained',()=>{assert.equal(c.http_clients[0].detour,'direct');assert.equal(c.route.default_http_client,'hc-direct');});
  t('UDP443 modes',()=>{for(const clash_mode of ['Rule','Direct','Global'])assert.equal(route(c,{network:'udp',port:443,ip_version:4,clash_mode}),'reject');});
  t('TCP443 preserved',()=>assert.equal(route(c,{network:'tcp',port:443,ip_version:4}),'漏网之鱼'));
  t('STUN preserved',()=>assert.equal(route(c,{network:'udp',port:3478,protocol:'stun',ip_version:4}),'漏网之鱼'));
