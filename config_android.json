@@ -1,0 +1,229 @@
+{
+  "log": {
+    "level": "warn",
+    "timestamp": true
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "cache.db"
+    },
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "default_mode": "Rule"
+    }
+  },
+  "http_clients": [
+    {
+      "tag": "hc-proxy",
+      "detour": "LXY"
+    }
+  ],
+  "dns": {
+    "servers": [
+      {
+        "type": "udp",
+        "tag": "dns-direct",
+        "server": "223.5.5.5"
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote",
+        "server": "1.1.1.1",
+        "detour": "LXY"
+      },
+      {
+        "type": "https",
+        "tag": "dns-ai",
+        "server": "1.1.1.1",
+        "detour": "AI"
+      }
+    ],
+    "rules": [
+      {
+        "rule_set": [
+          "ai-extra",
+          "geosite-ai"
+        ],
+        "action": "route",
+        "server": "dns-ai"
+      },
+      {
+        "rule_set": [
+          "geosite-cn"
+        ],
+        "action": "route",
+        "server": "dns-direct"
+      }
+    ],
+    "final": "dns-remote",
+    "strategy": "ipv4_only",
+    "reverse_mapping": true
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "address": [
+        "172.19.0.1/30"
+      ],
+      "auto_route": true
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "selector",
+      "tag": "LXY",
+      "outbounds": [
+        "LXY-自动"
+      ],
+      "default": "LXY-自动",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "urltest",
+      "tag": "LXY-自动",
+      "outbounds": [],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "3m",
+      "tolerance": 50,
+      "idle_timeout": "30m",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "selector",
+      "tag": "AI",
+      "outbounds": [],
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
+        "clash_mode": "Direct",
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "clash_mode": "Global",
+        "action": "route",
+        "outbound": "LXY"
+      },
+      {
+        "rule_set": [
+          "ai-extra",
+          "geosite-ai"
+        ],
+        "action": "route",
+        "outbound": "AI"
+      },
+      {
+        "rule_set": [
+          "geosite-cn"
+        ],
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "action": "resolve",
+        "strategy": "ipv4_only"
+      },
+      {
+        "ip_is_private": true,
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "rule_set": [
+          "geoip-cn"
+        ],
+        "action": "route",
+        "outbound": "direct"
+      }
+    ],
+    "rule_set": [
+      {
+        "tag": "ai-extra",
+        "type": "inline",
+        "rules": [
+          {
+            "domain_suffix": [
+              "claude.ai",
+              "claude.com",
+              "anthropic.com",
+              "claudeusercontent.com",
+              "openai.com",
+              "chatgpt.com",
+              "oaistatic.com",
+              "oaiusercontent.com",
+              "sora.com",
+              "gemini.google.com",
+              "aistudio.google.com",
+              "ai.google.dev",
+              "generativelanguage.googleapis.com",
+              "notebooklm.google.com",
+              "perplexity.ai",
+              "pplx.ai",
+              "x.ai",
+              "grok.com",
+              "poe.com",
+              "character.ai",
+              "midjourney.com",
+              "huggingface.co",
+              "openrouter.ai",
+              "mistral.ai",
+              "groq.com",
+              "cursor.com",
+              "cursor.sh",
+              "githubcopilot.com",
+              "copilot.microsoft.com",
+              "meta.ai",
+              "suno.com",
+              "elevenlabs.io",
+              "runwayml.com",
+              "replicate.com"
+            ]
+          }
+        ]
+      },
+      {
+        "tag": "geosite-ai",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/category-ai-!cn.srs",
+        "update_interval": "3d"
+      },
+      {
+        "tag": "geosite-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/cn.srs",
+        "update_interval": "3d"
+      },
+      {
+        "tag": "geoip-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/cn.srs",
+        "update_interval": "3d"
+      }
+    ],
+    "final": "LXY",
+    "default_domain_resolver": {
+      "server": "dns-direct",
+      "strategy": "ipv4_only"
+    },
+    "default_http_client": "hc-proxy"
+  }
+}
