@@ -73,7 +73,7 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 
 ## 从旧分组升级
 
-模板地址及脚本参数保持原样。在 Sub-Store 文件管理中同时刷新远程 JSON 模板和 `inject-nodes.js`，预览确认以上八个分组后保存，再更新客户端的生成文件链接。不要在已注入的 JSON 上重复运行脚本。新的缓存 ID 用于避开旧分组选择；首次导入使用表中的默认值。
+模板地址及脚本参数保持原样。在 Sub-Store 文件管理中同时刷新远程 JSON 模板和 `inject-nodes.js`，预览确认以上八个分组后保存，再更新客户端的生成文件链接。新脚本会清理旧注入结果并重新构建，建议文件源仍指向原始远程模板。新的缓存 ID 用于避开旧分组选择；首次导入使用表中的默认值。
 
 作者 DNS、IPv4、UDP443 拒绝以及三端入站配置保持原有逻辑。Global 模式通过 `GLOBAL` 选择出口；Direct 模式使用 `🎯 全球直连`。DNS Google 的代理出口映射为 `节点选择`。
 
@@ -100,3 +100,25 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 电脑 TUN 模板现在同时包含 `tun-in` 与 `mixed-in`，HTTP 和 SOCKS 共用 `127.0.0.1:7890`。刷新 Sub-Store 的 `config_tun.json` 远程模板，重新预览、保存，再更新客户端配置并重启。预览中 `inbounds` 应有 `tun` 和 `mixed` 两项，`mixed.listen_port` 为 `7890`。节点注入脚本地址及参数不变。
 
 如需手动设置系统或软件代理，地址填写 `127.0.0.1`、端口 `7890`。此端口仅允许本机连接。非 TUN 模板仍自动设置系统代理，Android 模板仍使用 VPN 入口。
+
+## 安卓文件编辑填写（原 main 地址）
+
+“内容”页：类型选 **文件**，来源选 **远程**，合并来源选 **不合并**，远程文件失败处理选 **严格报错**。链接填写原 main 地址：
+
+```text
+https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/config_android.json
+```
+
+User-Agent、代理策略、查询流量信息相关字段和 age 加密公钥按原设置留空。更新本次修复时可临时启用“禁用远程缓存”，获取新模板后再恢复缓存。
+
+“操作”页：脚本操作选 **远程链接**，保持 **启用**、**预览**勾选。删除 Oterea `sing-box-col.js`、旧 Xream 模板及其他追加分组的操作，只保留下列本仓库脚本：
+
+```text
+https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js#name=YBsSB2&type=collection&vps_name=VPS&vps_type=subscription
+```
+
+若参数在界面中单独显示：`name=YBsSB2`、`type=collection`、`vps_name=VPS`、`vps_type=subscription`。移除旧的 `outbound` 等参数。首次更新可勾选“关闭缓存”，确保获取新脚本；“不验证服务器证书”保持未勾选。
+
+新版脚本支持把旧注入结果清理后重建，但必须是最后一条修改出站的操作；其他脚本若在它后面追加分组，仍会产生多余分组。组合订阅本身保留原设置。
+
+点击 **即时预览**，检查仅有八个分组，`自动选择` 填入机场节点，`VPS` 中包含 `VPS-自动` 和具体 VPS 节点，日志有 `分组 8/8`。再点击 **保存**，安卓更新已有生成文件链接并重启。手机应看不到 `proxy`、`AI`、`ALL AUTO`、机场 PIN 和地区测速组。本次保持原 main 路径；电脑模板入站、作者 DNS、禁用 IPv6 和完整规则数据沿用原设置。

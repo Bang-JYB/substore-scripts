@@ -30,15 +30,22 @@ let config;
 try {config = JSON.parse(typeof $content !== 'undefined' ? $content : $files[0]);}
 catch (_) {throw new Error('文件源必须是仓库中的三端 JSON 模板');}
 if (!config || !Array.isArray(config.outbounds)) throw new Error('模板缺少 outbounds');
-// 每次从原始模板构建；防止误接在旧 Xream 注入之后，造成重复或混池。
+// 每次从组合订阅重建节点。兼容旧注入追加的出站，清理后固定为八个分组。
 const groups = ['节点选择','自动选择','VPS','VPS-自动','AI工具','漏网之鱼','🎯 全球直连','GLOBAL'];
 const reserved = new Set([...groups,'direct']);
 for (const tag of groups) if (config.outbounds.filter(o=>o.tag===tag).length !== 1) throw new Error('模板策略组缺失或重名：' + tag);
-if (config.outbounds.some(o=>!reserved.has(o.tag))) throw new Error('请移除旧注入脚本，并使用原始 JSON 模板');
-for (const tag of ['自动选择','VPS-自动']) {
+for (const tag of groups) {
   const group=config.outbounds.find(o=>o.tag===tag);
-  if (group.type !== 'urltest' || array(group.outbounds).length) throw new Error('请使用未注入的测速模板');
+  const expectedType=['自动选择','VPS-自动'].includes(tag)?'urltest':'selector';
+  if (group.type !== expectedType) throw new Error('模板策略组类型错误：' + tag + '，请刷新仓库模板');
 }
+const direct=config.outbounds.filter(o=>o.tag==='direct');
+if (direct.length!==1 || direct[0].type!=='direct') throw new Error('模板 direct 出站缺失、重名或类型错误');
+const removedOutbounds=config.outbounds.filter(o=>!reserved.has(o.tag));
+const removedGroups=removedOutbounds.filter(o=>['selector','urltest'].includes(o.type)).length;
+// 只保留模板策略定义和 direct；其余节点/端点重新读取，避免旧订阅分组混入。
+config.outbounds=[...groups.map(tag=>config.outbounds.find(o=>o.tag===tag)),direct[0]];
+delete config.endpoints;
 const combined = await read(name,'collection');
 // 仅用 VPS 单订阅辨认来源，不把组合中未选入的节点额外添加到最终配置。
 const vpsSource = await read(vpsName,subType(args.vps_type,'subscription'));
@@ -121,6 +128,10 @@ for (const [tag,pool] of [
 config.outbounds.push(...nodes);
 if (endpoints.length) config.endpoints=endpoints;
 else delete config.endpoints;
+const finalGroups=config.outbounds.filter(o=>['selector','urltest'].includes(o.type));
+if (finalGroups.length!==groups.length || finalGroups.some((o,i)=>o.tag!==groups[i])) {
+  throw new Error('最终分组数量或顺序错误，停止生成');
+}
 // 节点依赖、策略引用和环路检查；从不打印订阅或节点对象。
 const objects=[...config.outbounds,...endpoints], graph=new Map();
 for (const node of objects) {
@@ -154,4 +165,5 @@ if (outputBytes>maxOutputBytes) {
 }
 $content=content;
 console.log('[组合订阅注入] 完成：机场 ' + airport.length + '，VPS ' + vps.length +
-  '，IPv6 节点过滤 ' + filteredIPv6 + '，信息过滤 ' + removedInfo + '，去重 ' + duplicates + '；香港保留；紧凑配置 ' + outputBytes + ' 字节');
+  '，IPv6 节点过滤 ' + filteredIPv6 + '，信息过滤 ' + removedInfo + '，去重 ' + duplicates +
+  '；分组 8/8；清理旧分组 ' + removedGroups + '；香港保留；紧凑配置 ' + outputBytes + ' 字节');

@@ -9,7 +9,7 @@
 | `config_android.json` | Android，VPN |
 | `inject-nodes.js` | 从组合订阅注入节点、识别 VPS 来源、校验空池与环路 |
 
-安装步骤和完整地址见 [z-substore-scripts.md](z-substore-scripts.md)。每个模板只添加一条 `inject-nodes.js` 文件脚本，移除旧的两条 Xream 注入操作。
+安装步骤和完整地址见 [z-substore-scripts.md](z-substore-scripts.md)。每个模板只添加一条 `inject-nodes.js` 文件脚本，移除旧的 Xream/Oterea 等节点与分组注入操作。此脚本必须是最后一条修改出站的操作。
 
 ## 分流策略
 
@@ -69,6 +69,12 @@ DNS 已按你最新要求采用作者方案，取代上一版“未知 DNS 国�
 **必须同时刷新对应远程 JSON 模板和 `inject-nodes.js`**，然后预览、保存，更新客户端配置并重启。旧脚本会把紧凑模板重新格式化为约 5.9 MB；只刷新模板或只刷新客户端都不足以完成更新。
 
 脚本按 UTF-8 字节计数，并在输出超过 **4,128,768 字节**时停止生成，为 4 MiB 消息包装预留 64 KiB。若组合订阅包含大量节点或附加数据导致触发大小提示，请减少组合订阅选入的节点后重新生成。日志只输出字节数，不输出节点密码。
+
+## 安卓 26 个分组修复
+
+手机截图的 26 组为模板八组加额外十八组：`proxy`、`AI`、`ALL AUTO`、机场 AUTO/MANUAL/PIN 与地区测速组。设置截图中的 Oterea `sing-box-col.js` 会追加这些分组，并给模板空测速池补 `COMPATIBLE`。本仓库注入脚本改为保留八个策略定义及 `direct`，清理旧出站和端点，再从组合订阅重建两个节点池；最终校验八组的数量和顺序，并在日志记录 `分组 8/8` 及清理数量。重复运行会重新读取当前订阅，结果不叠加。安卓模板缓存 ID 更新为 `config_android-ipv4-author-dns-groups-v3`，用新的缓存命名空间重置旧选择。
+
+使用原来的 `main/config_android.json` 与 `main/inject-nodes.js` 地址。固定提交 URL 不会收到 main 上的更新。Sub-Store 安卓文件须启用本仓库的注入脚本；若后续再运行 Oterea 或其他追加分组的脚本，仍会重新出现多余分组。具体填写见使用说明。
 
 ## 开发与验证
 

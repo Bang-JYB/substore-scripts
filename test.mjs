@@ -38,7 +38,7 @@ function core(c,label){
   const file=path.join(temp,label+'.json');fs.writeFileSync(file,JSON.stringify(c));
   const r=spawnSync(process.env.SING_BOX,['check','-c',file],{encoding:'utf8',timeout:30000});
   if(r.error)throw r.error;
-  assert.equal(r.status,0,label+': '+r.stderr+r.stdout);coreChecks++;
+  assert.equal(r.status,0,label+' (signal '+r.signal+'): '+r.stderr+r.stdout);coreChecks++;
 }
 // Follow user selections through selector groups; URLTest pools remain a set.
 function choice(c,tag,selected={}){
@@ -170,7 +170,11 @@ for(const filename of files){
   ['reserved and chain mapping',async()=>{const reserved=['节点选择','自动选择','VPS','VPS-自动','AI工具','漏网之鱼','🎯 全球直连','GLOBAL','direct'];const data={outbounds:[...reserved.map((tag,i)=>node(tag,i+20)),node('LXY 美国',2,{detour:'节点选择'}),node('private Tokyo',6)]};const {c:d}=await run(filename,{},data);for(const tag of reserved)assert(out(d,'节点 / '+tag));assert.equal(out(d,'LXY 美国').detour,'节点 / 节点选择');core(d,filename+'-chain');}],
   ['filtered dependency fails',async()=>assert.rejects(run(filename,{}, {outbounds:[node('LXY',1,{detour:'missing'}),node('private Tokyo',6)]}),/依赖缺失/)],
   ['cycle fails',async()=>assert.rejects(run(filename,{}, {outbounds:[node('a',1,{detour:'b'}),node('b',2,{detour:'a'}),node('private Tokyo',6)]}),/环路/)],
-  ['re-injection fails',async()=>assert.rejects(run(filename,{},combined,own,JSON.stringify(c)),/移除旧注入|未注入/)],
+  ['re-injection rebuilds identical output',async()=>{const r=await run(filename,{},combined,own,JSON.stringify(c));assert.deepEqual(r.c,c);}],
+  ['legacy 26 groups rebuilt to eight',async()=>{const old=JSON.parse(fs.readFileSync(path.join(root,filename),'utf8'));const names=['proxy','AI','ALL AUTO','LXY_SUB AUTO','VPS AUTO','LXY_SUB MANUAL','VPS MANUAL','LXY_SUB PIN','VPS PIN','LXY Japan','LXY Hong Kong','LXY Singapore','LXY United States','LXY United Kingdom','LXY Taiwan','🇮🇩','🇺🇸','🇯🇵'];for(const tag of ['自动选择','VPS-自动'])out(old,tag).outbounds=['COMPATIBLE'];old.outbounds.push(...names.map((tag,i)=>({type:i%2?'urltest':'selector',tag,outbounds:['old-node']})),{type:'direct',tag:'COMPATIBLE'},node('old-node',99));old.endpoints=[{type:'wireguard',tag:'obsolete endpoint'}];assert.equal(old.outbounds.filter(o=>['selector','urltest'].includes(o.type)).length,26);const r=await run(filename,{},combined,own,JSON.stringify(old));assert.deepEqual(r.c,c);assert(!r.c.outbounds.some(o=>names.includes(o.tag)));}],
+  ['subscription groups excluded from output',async()=>{const data=structuredClone(combined);data.outbounds.unshift({type:'selector',tag:'proxy',outbounds:['LXY 日本']},{type:'urltest',tag:'ALL AUTO',outbounds:['LXY 日本']});const r=await run(filename,{},data);assert.deepEqual(r.c,c);}],
+  ['invalid reserved group type rejected',async()=>{const old=structuredClone(c);out(old,'VPS').type='urltest';await assert.rejects(run(filename,{},combined,own,JSON.stringify(old)),/策略组类型错误/);}],
+  ['duplicate direct rejected',async()=>{const old=structuredClone(c);old.outbounds.push({type:'direct',tag:'direct'});await assert.rejects(run(filename,{},combined,own,JSON.stringify(old)),/direct 出站/);}],
   ['legacy WG fails',async()=>assert.rejects(run(filename,{}, {outbounds:[{type:'wireguard',tag:'old'}]}),/WireGuard outbound/)],
   ['WG IPv4 cleanup',async()=>{const wg={type:'wireguard',tag:'WG',address:['10.0.0.2/32','fd00::2/128'],private_key:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',peers:[{address:'192.0.2.1',port:51820,public_key:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',allowed_ips:['0.0.0.0/0','::/0']}]};const {c:d}=await run(filename,{}, {outbounds:[node('LXY HK',1)],endpoints:[wg]}, {outbounds:[],endpoints:[wg]});assert.deepEqual(d.endpoints[0].address,['10.0.0.2/32']);assert.deepEqual(d.endpoints[0].peers[0].allowed_ips,['0.0.0.0/0']);assert.deepEqual(out(d,'VPS-自动').outbounds,['WG']);core(d,filename+'-wg');}]
  ];
