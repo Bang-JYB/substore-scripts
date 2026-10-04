@@ -197,11 +197,47 @@ curl --noproxy "" --proxy socks5h://127.0.0.1:7890 --connect-timeout 10 --max-ti
 
 此错误是 HTTP/2 的 `ENHANCE_YOUR_CALM (0x0b)`，表示链路中的 HTTP/2 端点认为对端行为可能产生过大负载。单凭这行错误无法定位是 Sub-Store 服务、反向代理/CDN、上游订阅还是客户端连接触发，不能等同于 JSON 分组错误或先前的 4 MiB gRPC 限制。
 
-用户报告它发生在**电脑客户端更新配置**时。客户端先下载远程配置，再检查和应用 JSON；下载尚未成功，新模板里的 `http_clients` 不会控制这一请求。因此不在模板中添加无效的“关闭 HTTP/2”字段，也不改作者 DNS。官方 Apple 客户端更新逻辑及 libbox 下载器也独立于路由里的 HTTP Client。
+当前反馈：**Mac 端正常，Windows 官方 sing-box 客户端更新非 TUN 配置报错；Sub-Store 即时预览成功，浏览器访问生成文件链接仍报同样的 HTTP/2 错误。** 预览成功表明该次生成过程可用，但不能证明下载入口正常。优先检查生成文件的下载入口、反向代理/CDN 以及访问该入口的代理链路；保存文件后下载是否重新获取上游，也应结合后端日志判断。
+
+官方 Windows 客户端源码中，`fetchRemoteContent()` 先执行下载，`updateRemoteProfile()` 再调用 `checkConfig()`。下载尚未成功，新模板里的 `http_clients` 不会控制这一请求。因此不在模板中添加无效的“关闭 HTTP/2”字段，也不改作者 DNS。所核对源码为主分支，用户安装版本仍需确认。
 
 1. 在 Sub-Store 分别预览、保存两个电脑文件，确认生成的是紧凑 JSON 和八个策略组；不要同时连续更新三个场景。获取新文件后恢复模板/脚本缓存，避免每次重复拉取上游。
 2. 在浏览器打开对应的 **Sub-Store 生成文件下载链接**并下载。如果下载仍失败，检查 Sub-Store 后端日志以及前面的反向代理/CDN 日志；模板文件地址与生成文件地址是两个不同环节。
-3. 下载成功时，可先从本地文件导入客户端恢复使用。若要对比 HTTP/1.1 与 HTTP/2，在本机对同一生成文件 URL 做一次下载测试；该 URL 可能带 token，勿贴到公开仓库或日志中。Mac 默认 shell 为 zsh，可用：
+3. 下载成功时，可先从本地文件导入客户端恢复使用。若要对比 HTTP/1.1 与 HTTP/2，在本机对同一生成文件 URL 做一次下载测试；该 URL 可能带 token，勿贴到公开仓库或日志中。
+
+### Windows 官方客户端：下载检查与临时恢复
+
+打开 **PowerShell**，粘贴以下命令。第一行执行后，在提示处填写非 TUN 文件的 **Sub-Store 生成文件下载链接**，不要填 GitHub 空节点模板地址。使用 `curl.exe`，避免 Windows PowerShell 把 `curl` 解释为其他命令。此命令仅对本次下载强制 HTTP/1.1，不修改系统或客户端设置。
+
+```powershell
+$sb_update_url = Read-Host '粘贴 Sub-Store 生成文件下载链接（仅在本机输入）'
+$sb_download_path = Join-Path $env:TEMP 'sb-pc-download.json'
+curl.exe --http1.1 --fail --location --connect-timeout 10 --max-time 90 --output "$sb_download_path" --write-out 'HTTP %{http_code}; HTTP版本 %{http_version}; 字节 %{size_download}\n' "$sb_update_url"
+$sb_download_exit = $LASTEXITCODE
+Remove-Variable sb_update_url
+if ($sb_download_exit -eq 0) {
+    $sb_download_config = Get-Content -LiteralPath $sb_download_path -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (-not $sb_download_config.inbounds -or -not $sb_download_config.outbounds) { throw '下载内容不是预期的 sing-box 配置' }
+    $sb_download_config.inbounds | Select-Object type, tag, listen, listen_port
+    Write-Host "配置已下载到：$sb_download_path"
+} else {
+    Write-Host "下载失败，curl 退出码：$sb_download_exit；请勿导入可能残留的不完整文件。"
+}
+```
+
+| 结果 | 下一步 |
+| --- | --- |
+| 下载成功并显示 `mixed-in`、`127.0.0.1`、`7890`，没有 `tun` | 在官方客户端新增**本地配置**，导入下载的 JSON；若该版本提供粘贴内容方式，也可粘贴此文件内容。选择这份本地配置启动；保留原远程配置，暂时关闭其自动更新。 |
+| HTTP/1.1 成功，浏览器/客户端失败 | 检查下载服务的 HTTP/2 入口及访问代理；命令行与浏览器/客户端可能使用不同代理，成功本身还不能证明只由 HTTP/2 引起。 |
+| 401/403/404 | 检查生成文件链接、访问凭据、下载路径与反向代理转发。不要把带 token 的完整链接公开。 |
+| 500/502/504，或仍出现同样错误 | 对照 Sub-Store 后端和反向代理日志，查看该次请求是否触发上游下载、生成失败或入口超时。 |
+| 连接失败或超时 | 检查 Windows 到 Sub-Store 地址的访问；若系统代理指向 7890，先确认对应客户端已运行。 |
+
+该本地配置不会自动更新订阅，需要恢复远程下载后再切回原远程配置。原 GitHub 模板地址、脚本参数、DNS 和八个分组不变。请提供客户端“关于”页的版本号及上述 HTTP 状态/退出码以继续定位；无需提供真实节点或完整订阅链接。
+
+### macOS 命令行检查（需要时）
+
+Mac 默认 shell 为 zsh，可用：
 
 ```zsh
 read -rs 'sb_update_url?粘贴 Sub-Store 生成文件下载链接（输入不回显）：'; printf '\n'
@@ -211,7 +247,7 @@ unset sb_update_url
 
 HTTP/1.1 成功而客户端仍报此错误时，优先检查下载服务/反向代理的 HTTP/2 兼容性与限制。要长期修复须调整实际下载链路或客户端，不能通过下载后才生效的 JSON 保证修复。保持证书验证；不要把生成的真实节点配置上传到 GitHub。
 
-依据：[HTTP/2 RFC 9113 第 7 节](https://www.rfc-editor.org/rfc/rfc9113.html#section-7)、[官方 1.14.2 mixed 文档](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/configuration/inbound/mixed.md)、[官方 1.14.2 TUN 文档](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/configuration/inbound/tun.md)、[Apple 客户端更新逻辑](https://github.com/SagerNet/sing-box-for-apple/blob/main/Library/Database/Profile%2BUpdate.swift)、[1.14.2 libbox 下载器](https://github.com/SagerNet/sing-box/blob/v1.14.2/experimental/libbox/http.go)。
+依据：[HTTP/2 RFC 9113 第 7 节](https://www.rfc-editor.org/rfc/rfc9113.html#section-7)、[官方 1.14.2 mixed 文档](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/configuration/inbound/mixed.md)、[官方 1.14.2 TUN 文档](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/configuration/inbound/tun.md)、[Windows 官方客户端更新逻辑](https://github.com/SagerNet/sing-box-for-desktop/blob/0d3bca12a3905437a1501d3d51afc73d6259bfd3/src/main/profiles.ts)、[Sub-Store 下载与生成逻辑](https://github.com/sub-store-org/Sub-Store/blob/b7379718d833f3777bcd184ab63f0201a3d23d45/backend/src/restful/sync.js)。
 
 ## 安卓文件编辑填写（原 main 地址）
 

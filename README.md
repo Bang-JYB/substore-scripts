@@ -80,7 +80,7 @@ DNS 已按你最新要求采用作者方案，取代上一版“未知 DNS 国�
 
 [完整填写说明](z-substore-scripts.md) 已分别列出电脑 TUN、电脑非 TUN 的「内容」与「操作」链接、参数、缓存选项、预览检查和设备设置；三份模板继续使用原 main 路径及同一组合订阅脚本。新增 Mac 7890 的监听、HTTP/SOCKS 检查步骤。
 
-`Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM` 是下载链路的 HTTP/2 错误。用户报告它发生在客户端更新配置时，仅凭错误不能定位到具体服务器或上游。客户端在应用新配置前就要下载文件，模板内的 HTTP Client 不控制此下载；说明包含 Sub-Store 预览/保存、生成文件下载、本地导入及 HTTP/1.1 对比步骤，不声称仅修改 JSON 即可修复远程 HTTP/2 链路。
+`Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM` 是下载链路的 HTTP/2 错误。当前反馈为 Mac 正常、Windows 官方客户端更新非 TUN 配置失败，Sub-Store 预览正常但浏览器下载也失败。优先核对生成文件下载入口与访问代理；客户端先下载再校验 JSON，模板内的 HTTP Client 不控制此下载。[完整说明](z-substore-scripts.md) 新增 Windows PowerShell 的 HTTP/1.1 下载命令、结果判断和本地配置导入步骤。远程下载尚未实机验证修复，原模板与脚本链接不变。
 
 ## 开发与验证
 
