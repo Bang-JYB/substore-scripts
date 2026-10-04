@@ -14,8 +14,8 @@
 
 | 场景 | 模板地址 | 客户端设置 |
 | --- | --- | --- |
-| Windows / macOS，开启 TUN | `https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/config_tun.json` | 启用 TUN；HTTP/SOCKS 代理地址为 `127.0.0.1:7890` |
-| Windows / macOS，不开启 TUN | `https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/config_pc.json` | 启用系统代理；HTTP/SOCKS 代理地址为 `127.0.0.1:7890` |
+| Windows / macOS，开启 TUN | `https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/config_tun.json` | 仅启用 TUN，不修改系统代理；如个别应用需要，可手动使用 HTTP/SOCKS `127.0.0.1:7890` |
+| Windows / macOS，不开启 TUN | `https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/config_pc.json` | 不启用系统代理；需要代理的应用可手动使用 HTTP/SOCKS `127.0.0.1:7890` |
 | Android | `https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/config_android.json` | 在 sing-box Android 启动 VPN |
 
 ## Sub-Store 填写

@@ -125,14 +125,7 @@
       "strict_route": true,
       "stack": "mixed",
       "mtu": 1400,
-      "dns_mode": "hijack",
-      "platform": {
-        "http_proxy": {
-          "enabled": true,
-          "server": "127.0.0.1",
-          "server_port": 7890
-        }
-      }
+      "dns_mode": "hijack"
     },
     {
       "type": "mixed",
