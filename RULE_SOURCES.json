@@ -1,6 +1,6 @@
 {
   "snapshot_date": "2026-10-03",
-  "description": "原配置使用的 21 份远程规则完整解码为内联 headless rules；保留标签和匹配内容，仅删除远程下载字段。",
+  "description": "规则数据完整解码为内联 headless rules（官方 sing-box 1.14.2 rule-set decompile）。路由与 DNS 共用小表 geosite-cn / geosite-foreign；已移除的大表记录在 removed_rule_sets。",
   "decoder": "official sing-box 1.14.2 rule-set decompile",
   "rule_sets": [
     {
@@ -8,14 +8,6 @@
       "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/category-ai-!cn.srs",
       "source_sha256": "ff4686ba249878f815f9f963e3b4da598a6686649006efeeb6a2c6f84abc5fdc",
       "inline_rules_sha256": "e8ea5562aab5a3605a6ac6e2a278eb2a6b39229a7ed77d235846135273dc53ad",
-      "source_version": 2,
-      "rule_count": 1
-    },
-    {
-      "tag": "geosite-cn",
-      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs",
-      "source_sha256": "66f3c2324558f166b1ecb1237fdeac29f98af8b9e84d18f501c44445f97e25be",
-      "inline_rules_sha256": "656a6f92bbd5508b7475583a5648f95f8c284111d15b3dd9e6532c25dc209921",
       "source_version": 2,
       "rule_count": 1
     },
@@ -100,14 +92,6 @@
       "rule_count": 1
     },
     {
-      "tag": "geosite-foreign",
-      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/geolocation-!cn.srs",
-      "source_sha256": "ef867b07e150cc605ff93047aeaba1d2b431c2e99ccedf3e7c9c483f002af3d5",
-      "inline_rules_sha256": "eb3911aca1444d707462c0d32d5c6466410d0b745444d3609cf84a4b380c48a4",
-      "source_version": 2,
-      "rule_count": 1
-    },
-    {
       "tag": "dns-fakeipfilter-cn",
       "source_url": "https://testingcf.jsdelivr.net/gh/qichiyuhub/rule@main/rules/fakeipfilter-cn.json",
       "source_sha256": "97a35dcab38a8a0247d0e27ea9f7e14517f8327058b8497697a13db0b360929a",
@@ -124,14 +108,6 @@
       "rule_count": 3
     },
     {
-      "tag": "dns-geosite-microsoft@cn",
-      "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-microsoft@cn.srs",
-      "source_sha256": "165e6d21cdf7589c54de859394b8fa134e1dfb2fccbd0aeb861e45fb8c636440",
-      "inline_rules_sha256": "7bd0b3ca15b7d9b92f6f3645c990947b1fbf1a391387edf95a6892ea0e0b3aeb",
-      "source_version": 1,
-      "rule_count": 1
-    },
-    {
       "tag": "dns-geosite-apple@cn",
       "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-apple@cn.srs",
       "source_sha256": "682b0e0fe96628e32c943386e048b4b3f15c95d54949c455045725baa8497159",
@@ -140,7 +116,7 @@
       "rule_count": 1
     },
     {
-      "tag": "dns-geosite-geolocation-!cn",
+      "tag": "geosite-foreign",
       "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-geolocation-!cn.srs",
       "source_sha256": "1a23dd9a81380727c02e60d97fde1ff5ebe3a4de46d4bb554d3da0d0a135717a",
       "inline_rules_sha256": "62f1be15fe73319b4deb5fc463fc0f86d7bfd1c30f1d0a21cc56dd1f1b6e8436",
@@ -148,7 +124,7 @@
       "rule_count": 1
     },
     {
-      "tag": "dns-geosite-cn",
+      "tag": "geosite-cn",
       "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-cn.srs",
       "source_sha256": "2f4af0be08f2ff494a8fcdef992dc92a2267600ce26c9bba17421d1ce9a6715c",
       "inline_rules_sha256": "fdad24055283d00d018b8051ef28adf4799403fcd389c92218eeceb2924808f2",
@@ -170,6 +146,35 @@
       "inline_rules_sha256": "0f9f8e5f5cde1bd7a31372f76194bd33355810b1d33ed659de2550af6371814a",
       "source_version": 1,
       "rule_count": 1
+    }
+  ],
+  "removed_rule_sets": [
+    {
+      "tag": "geosite-cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs",
+      "source_sha256": "66f3c2324558f166b1ecb1237fdeac29f98af8b9e84d18f501c44445f97e25be",
+      "inline_rules_sha256": "656a6f92bbd5508b7475583a5648f95f8c284111d15b3dd9e6532c25dc209921",
+      "source_version": 2,
+      "rule_count": 1,
+      "reason": "111,224 条后缀，占体积一半以上；由 DNS 评估流程 + geoip-cn 兜底，改用小表 geosite-cn"
+    },
+    {
+      "tag": "geosite-foreign",
+      "source_url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/geolocation-!cn.srs",
+      "source_sha256": "ef867b07e150cc605ff93047aeaba1d2b431c2e99ccedf3e7c9c483f002af3d5",
+      "inline_rules_sha256": "eb3911aca1444d707462c0d32d5c6466410d0b745444d3609cf84a4b380c48a4",
+      "source_version": 2,
+      "rule_count": 1,
+      "reason": "与 DNS 侧 geolocation-!cn 高度重叠；改用同一张小表"
+    },
+    {
+      "tag": "dns-geosite-microsoft@cn",
+      "source_url": "https://testingcf.jsdelivr.net/gh/SagerNet/sing-geosite@rule-set/geosite-microsoft@cn.srs",
+      "source_sha256": "165e6d21cdf7589c54de859394b8fa134e1dfb2fccbd0aeb861e45fb8c636440",
+      "inline_rules_sha256": "7bd0b3ca15b7d9b92f6f3645c990947b1fbf1a391387edf95a6892ea0e0b3aeb",
+      "source_version": 1,
+      "rule_count": 1,
+      "reason": "与 geosite-microsoft-cn 数据哈希相同，合并"
     }
   ]
 }

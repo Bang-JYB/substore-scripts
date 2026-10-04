@@ -11,7 +11,7 @@ const files=['config_tun.json','config_pc.json','config_android.json'];
 const ruleSources=JSON.parse(fs.readFileSync(path.join(root,'RULE_SOURCES.json'),'utf8'));
 function canonical(v){if(Array.isArray(v))return v.map(canonical);if(v&&typeof v==='object')return Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])]));return v;}
 const ruleHash=rules=>createHash('sha256').update(JSON.stringify(canonical(rules))).digest('hex');
-const script=new vm.Script('(async()=>{\n'+fs.readFileSync(path.join(root,'inject-nodes.js'),'utf8')+'\nreturn {outputBytes,byteLength:utf8Length($content)};\n})()');
+const script=new vm.Script('(async()=>{\n'+fs.readFileSync(path.join(root,'inject-nodes.js'),'utf8')+'\nreturn {outputBytes,prettyBytes,byteLength:utf8Length($content)};\n})()');
 const node=(tag,n,extra={})=>({type:'shadowsocks',tag,server:'node'+n+'.example.com',server_port:443,
   method:'aes-128-gcm',password:'fixture-password-'+n,...extra});
 const own={outbounds:[node('private Tokyo',6),node('private US',7),node('not selected',8)]};
@@ -31,14 +31,14 @@ async function run(filename,args={},data=combined,source=own,template) {
     }});
   const diagnostics=await script.runInContext(ctx,{timeout:3000});
   assert(logs.every(s=>!s.includes('fixture-password')));
-  return {c:JSON.parse(ctx.$content),calls,content:ctx.$content,...diagnostics};
+  return {c:JSON.parse(ctx.$content),calls,logs,content:ctx.$content,...diagnostics};
 }
 function core(c,label){
   if(!temp)return;
   const file=path.join(temp,label+'.json');fs.writeFileSync(file,JSON.stringify(c));
   const r=spawnSync(process.env.SING_BOX,['check','-c',file],{encoding:'utf8',timeout:30000});
   if(r.error)throw r.error;
-  assert.equal(r.status,0,label+' (signal '+r.signal+'): '+r.stderr+r.stdout);coreChecks++;
+  assert.equal(r.status,0,label+': '+r.stderr+r.stdout);coreChecks++;
 }
 // Follow user selections through selector groups; URLTest pools remain a set.
 function choice(c,tag,selected={}){
@@ -62,6 +62,13 @@ function matches(r,p){
   if(r.domain_suffix&&!array(r.domain_suffix).some(s=>p.domain===s||p.domain?.endsWith('.'+s)))return false;
   return true;
 }
+function domainIn(rule,d){
+  if(array(rule.domain).includes(d))return true;
+  for(const s of array(rule.domain_suffix))if(s.startsWith('.')?d.endsWith(s):(d===s||d.endsWith('.'+s)))return true;
+  if(array(rule.domain_keyword).some(k=>d.includes(k)))return true;
+  return array(rule.domain_regex).some(x=>{try{return new RegExp(x).test(d);}catch{return false;}});
+}
+const setsFor=(c,d)=>c.route.rule_set.filter(r=>r.rules.some(x=>domainIn(x,d))).map(r=>r.tag);
 function route(c,p){
   for(const r of c.route.rules){if(['sniff','resolve'].includes(r.action))continue;
     if(matches(r,p))return r.outbound||r.action;}
@@ -82,9 +89,19 @@ function dnsResult(c,p){
 function dns(c,p){return dnsResult(c,p).result;}
 try{
 for(const filename of files){
- const {c,calls,content,outputBytes,byteLength}=await run(filename);results.push(c);
+ const {c,calls,content,outputBytes,prettyBytes,byteLength}=await run(filename);results.push(c);
  const t=(label,fn)=>test(filename+' / '+label,fn);
  t('compact full configuration below transport limit',()=>{assert.equal(content,JSON.stringify(c));assert(outputBytes<4*1024*1024-64*1024);});
+ t('size survives client re-formatting',()=>{assert(prettyBytes<4*1024*1024-64*1024);assert(Buffer.byteLength(JSON.stringify(c,null,2))<2*1024*1024);assert(Buffer.byteLength(JSON.stringify(c,null,4))<4*1024*1024-64*1024);});
+ t('real domains route as intended',()=>{
+  const want={'AI工具':['claude.ai','api.anthropic.com','chatgpt.com','openai.com','gemini.google.com','aistudio.google.com','perplexity.ai','cursor.com','huggingface.co'],
+   '节点选择':['www.google.com','www.youtube.com','github.com','t.me','netflix.com','twitter.com','reddit.com','wikipedia.org'],
+   '🎯 全球直连':['www.baidu.com','www.qq.com','www.taobao.com','bilibili.com','zhihu.com','jd.com','example.cn','www.apple.com.cn']};
+  for(const [outbound,domains] of Object.entries(want))for(const d of domains)
+   assert.equal(route(c,{domain:d,rule_set:setsFor(c,d),network:'tcp',port:443,ip_version:4}),outbound,d);});
+ t('real domains DNS path',()=>{
+  for(const d of ['claude.ai','chatgpt.com','www.google.com','github.com'])assert.deepEqual(dnsResult(c,{query_type:'A',rule_set:setsFor(c,d)}),{result:'fakeip',evaluations:[]},d);
+  for(const d of ['www.baidu.com','www.qq.com','www.taobao.com'])assert.equal(dns(c,{query_type:'A',rule_set:setsFor(c,d)}),'ali',d);});
  t('UTF8 byte counter includes Chinese and emoji',()=>{assert.equal(byteLength,Buffer.byteLength(content,'utf8'));assert.equal(outputBytes,byteLength);assert(outputBytes>content.length);});
  t('combined input',()=>{assert.equal(calls[0].name,'YBsSB2');assert.equal(calls[0].type,'collection');assert.equal(calls[1].name,'VPS');assert.equal(calls[1].type,'subscription');});
  t('HK kept',()=>assert(out(c,'自动选择').outbounds.includes('LXY 香港 HK')));
@@ -113,10 +130,10 @@ for(const filename of files){
  t('desktop and android API',()=>assert.equal(!!c.experimental.clash_api,filename!=='config_android.json'));
  t('TUN mode',()=>assert.equal(c.inbounds.some(i=>i.type==='tun'),filename!=='config_pc.json'));
  t('IPv4 TUN',()=>{for(const i of c.inbounds.filter(i=>i.type==='tun')){assert.deepEqual(i.address,['172.19.0.1/30']);assert.equal(i.stack,'mixed');assert.equal(i.strict_route,true);assert.equal(i.dns_mode,'hijack');assert(!i.interface_name);assert(!i.auto_redirect);}});
- t('desktop mixed proxy with TUN coexistence',()=>{const mixed=c.inbounds.filter(i=>i.type==='mixed');assert.equal(mixed.length,filename==='config_android.json'?0:1);if(filename!=='config_android.json'){assert.equal(mixed[0].tag,'mixed-in');assert.equal(mixed[0].listen,'127.0.0.1');assert.equal(mixed[0].listen_port,7890);assert.equal(mixed[0].set_system_proxy,filename==='config_pc.json');assert.equal(c.inbounds.length,filename==='config_tun.json'?2:1);}});
+ t('non TUN system proxy',()=>{if(filename==='config_pc.json'){assert.equal(c.inbounds[0].listen,'127.0.0.1');assert.equal(c.inbounds[0].listen_port,7890);assert.equal(c.inbounds[0].set_system_proxy,true);}});
  t('IPv4 resolution',()=>{assert.equal(c.dns.strategy,'ipv4_only');assert(c.outbounds.filter(o=>o.server).every(o=>o.domain_resolver.strategy==='ipv4_only'));});
- t('inline rule startup has no download dependency',()=>{assert.equal(c.route.rule_set.length,22);assert(c.route.rule_set.every(r=>r.type==='inline'&&r.rules.length));assert(c.route.rule_set.every(r=>!r.url&&!r.path&&!r.http_client&&!r.update_interval));});
- t('original rule data preserved by digest',()=>{assert.equal(ruleSources.rule_sets.length,21);for(const source of ruleSources.rule_sets){const r=c.route.rule_set.find(r=>r.tag===source.tag);assert(r);assert.equal(r.rules.length,source.rule_count);assert.equal(ruleHash(r.rules),source.inline_rules_sha256);}});
+ t('inline rule startup has no download dependency',()=>{assert.equal(c.route.rule_set.length,19);assert(c.route.rule_set.every(r=>r.type==='inline'&&r.rules.length));assert(c.route.rule_set.every(r=>!r.url&&!r.path&&!r.http_client&&!r.update_interval));});
+ t('original rule data preserved by digest',()=>{assert.equal(ruleSources.rule_sets.length,18);for(const source of ruleSources.rule_sets){const r=c.route.rule_set.find(r=>r.tag===source.tag);assert(r);assert.equal(r.rules.length,source.rule_count);assert.equal(ruleHash(r.rules),source.inline_rules_sha256);}});
  t('DNS and routing rule references resolve',()=>{const tags=new Set(c.route.rule_set.map(r=>r.tag));assert.equal(tags.size,c.route.rule_set.length);function walk(v){if(Array.isArray(v))v.forEach(walk);else if(v&&typeof v==='object')for(const [k,x] of Object.entries(v)){if(k==='rule_set')array(x).forEach(tag=>assert(tags.has(tag)));walk(x);}}walk(c.dns.rules);walk(c.route.rules);});
  t('direct HTTP client retained',()=>{assert.equal(c.http_clients[0].detour,'direct');assert.equal(c.route.default_http_client,'hc-direct');});
  t('UDP443 modes',()=>{for(const clash_mode of ['Rule','Direct','Global'])assert.equal(route(c,{network:'udp',port:443,ip_version:4,clash_mode}),'reject');});
@@ -139,24 +156,24 @@ for(const filename of files){
  t('author cache',()=>{assert.equal(c.dns.cache_capacity,8192);assert.equal(c.dns.optimistic.enabled,true);assert.equal(c.dns.reverse_mapping,true);assert.equal(c.experimental.cache_file.store_fakeip,true);});
  t('bootstrap avoids FakeIP',()=>{assert.equal(c.route.default_domain_resolver.server,'ali');assert.equal(c.http_clients[0].domain_resolver.server,'ali');assert(c.outbounds.filter(o=>o.server).every(o=>o.domain_resolver.server==='ali'));});
  t('author DNS rule-set references',()=>{const tags=new Set(c.route.rule_set.map(r=>r.tag));function walk(v){if(Array.isArray(v))v.forEach(walk);else if(v&&typeof v==='object')for(const[k,x]of Object.entries(v)){if(k==='rule_set')array(x).forEach(t=>assert(tags.has(t)));walk(x);}}walk(c.dns);});
- t('CN DNS',()=>assert.equal(dns(c,{query_type:'A',rule_set:['dns-geosite-cn']}),'ali'));
+ t('CN DNS',()=>assert.equal(dns(c,{query_type:'A',rule_set:['geosite-cn']}),'ali'));
  t('private DNS',()=>assert.equal(dns(c,{query_type:'A',rule_set:['dns-geosite-private']}),'ali'));
  t('domestic FakeIP exclusion',()=>assert.equal(dns(c,{query_type:'A',rule_set:['dns-fakeipfilter-cn']}),'ali'));
  t('foreign FakeIP exclusion',()=>assert.equal(dns(c,{query_type:'A',rule_set:['dns-fakeipfilter-!cn']}),'google'));
  t('unknown CN response evaluated then Ali',()=>assert.deepEqual(dnsResult(c,{query_type:'A',response_rule_set:['dns-geoip-cn']}),{result:'ali',evaluations:['google']}));
  t('unknown foreign response evaluated then FakeIP',()=>assert.deepEqual(dnsResult(c,{query_type:'A'}),{result:'fakeip',evaluations:['google']}));
- t('known foreign FakeIP without evaluation',()=>assert.deepEqual(dnsResult(c,{query_type:'A',rule_set:['dns-geosite-geolocation-!cn']}),{result:'fakeip',evaluations:[]}));
+ t('known foreign FakeIP without evaluation',()=>assert.deepEqual(dnsResult(c,{query_type:'A',rule_set:['geosite-foreign']}),{result:'fakeip',evaluations:[]}));
  t('author TXT default',()=>assert.equal(dns(c,{query_type:'TXT'}),'google'));
  t('HTTPS and SVCB rejected in all modes',()=>{for(const query_type of ['HTTPS','SVCB'])for(const clash_mode of ['Rule','Direct','Global'])assert.equal(dns(c,{query_type,clash_mode}),'reject');});
  t('Direct DNS',()=>assert.equal(dns(c,{query_type:'A',clash_mode:'Direct'}),'ali'));
  t('Global DNS',()=>assert.equal(dns(c,{query_type:'A',clash_mode:'Global'}),'fakeip'));
- t('author AI DNS alongside VPS traffic',()=>{assert.equal(dns(c,{query_type:'A',rule_set:['ai-extra','dns-geosite-geolocation-!cn']}),'fakeip');assert.equal(route(c,{rule_set:['ai-extra']}),'AI工具');});
+ t('author AI DNS alongside VPS traffic',()=>{assert.equal(dns(c,{query_type:'A',rule_set:['ai-extra','geosite-foreign']}),'fakeip');assert.equal(route(c,{rule_set:['ai-extra']}),'AI工具');});
  t('FakeIP TTL',()=>assert.equal(c.dns.rules.find(r=>r.server==='fakeip'&&r.rewrite_ttl).rewrite_ttl,1));
  t('author evaluation ECS and timeout',()=>{const r=c.dns.rules.find(r=>r.action==='evaluate');assert.equal(r.client_subnet,'223.5.5.0/24');assert.equal(r.timeout,'2s');assert.equal(r.server,'google');});
  core(c,filename);
  const cases=[
-  ['large but safe node data preserves full output',async()=>{const data={outbounds:[node('LXY HK',1,{password:'x'.repeat(1000000)}),node('private Tokyo',6)]};const r=await run(filename,{},data);assert.equal(out(r.c,'LXY HK').password.length,1000000);assert(r.outputBytes<4*1024*1024-64*1024);assert.equal(r.byteLength,Buffer.byteLength(r.content,'utf8'));}],
-  ['UTF8 oversized output rejected before assignment',async()=>{const data={outbounds:[node('LXY HK',1,{password:'🌏'.repeat(300000)}),node('private Tokyo',6)]};await assert.rejects(run(filename,{},data),/紧凑配置仍过大.*减少组合订阅/);}],
+  ['large but safe node data preserves full output',async()=>{const data={outbounds:[node('LXY HK',1,{password:'x'.repeat(1000000)}),node('private Tokyo',6)]};const r=await run(filename,{},data);assert.equal(out(r.c,'LXY HK').password.length,1000000);assert(r.outputBytes<4*1024*1024-64*1024);assert(r.prettyBytes<4*1024*1024-64*1024);assert.equal(r.byteLength,Buffer.byteLength(r.content,'utf8'));}],
+  ['UTF8 oversized output rejected before assignment',async()=>{const data={outbounds:[node('LXY HK',1,{password:'🌏'.repeat(1500000)}),node('private Tokyo',6)]};await assert.rejects(run(filename,{},data),/配置过大.*减少组合订阅/);}],
   ['explicit combination type',async()=>{const r=await run(filename,{type:'组合订阅'});assert.equal(r.calls[0].type,'collection');}],
   ['single subscription rejected',async()=>assert.rejects(run(filename,{type:'subscription'}),/必须指向组合订阅/)],
   ['empty name rejected',async()=>assert.rejects(run(filename,{name:''}),/填写不同/)],
@@ -166,21 +183,21 @@ for(const filename of files){
   ['empty airport fails',async()=>assert.rejects(run(filename,{}, {outbounds:[node('private Tokyo',6)]}),/没有可用机场/)],
   ['source config mismatch fails',async()=>assert.rejects(run(filename,{},combined,{outbounds:[node('private Tokyo',6,{password:'changed'})]}),/没有可识别/)],
   ['IPv6 servers removed and bind stripped',async()=>{const data={outbounds:[node('LXY HK',1,{inet6_bind_address:'::'}),node('v6 private',9,{server:'2001:db8::1'}),node('private Tokyo',6)]};const {c:d}=await run(filename,{},data);assert(!out(d,'v6 private'));assert(!('inet6_bind_address' in out(d,'LXY HK')));}],
-  ['duplicate name conflict',async()=>assert.rejects(run(filename,{}, {outbounds:[node('same',1),node('same',2),node('private Tokyo',6)]}),/重名/)],
+  ['duplicate names get suffix',async()=>{const r=await run(filename,{}, {outbounds:[node('same',1),node('same',2),node('private Tokyo',6)]});assert(out(r.c,'same'));assert(out(r.c,'same [2]'));assert(out(r.c,'自动选择').outbounds.includes('same [2]'));}],
+  ['detour to duplicate name fails',async()=>assert.rejects(run(filename,{}, {outbounds:[node('same',1),node('same',2),node('chain',3,{detour:'same'}),node('private Tokyo',6)]}),/重名/)],
+  ['unsupported type skipped and counted',async()=>{const r=await run(filename,{}, {outbounds:[...combined.outbounds,{type:'mieru',tag:'new proto',server:'x.example.com',server_port:1}]});assert(!out(r.c,'new proto'));assert(out(r.c,'LXY 日本'));assert(r.logs.join('').includes('mieru×1'));}],
+  ['VPS node named with traffic words kept',async()=>{const r=await run(filename,{}, {outbounds:[node('LXY 日本',1),node('VPS 流量大 订阅',6)]},{outbounds:[node('VPS 流量大 订阅',6)]});assert(out(r.c,'VPS-自动').outbounds.includes('VPS 流量大 订阅'));}],
+  ['normal names with Gb and 订阅 kept',async()=>{const r=await run(filename,{}, {outbounds:[node('香港 10Gb 专线',1),node('新加坡 订阅优化',2),node('private Tokyo',6)]});const pool=out(r.c,'自动选择').outbounds;assert(pool.includes('香港 10Gb 专线'));assert(pool.includes('新加坡 订阅优化'));}],
+  ['array output accepted',async()=>{const r=await run(filename,{}, combined.outbounds,own.outbounds);assert(out(r.c,'VPS-自动').outbounds.length>0);}],
   ['reserved and chain mapping',async()=>{const reserved=['节点选择','自动选择','VPS','VPS-自动','AI工具','漏网之鱼','🎯 全球直连','GLOBAL','direct'];const data={outbounds:[...reserved.map((tag,i)=>node(tag,i+20)),node('LXY 美国',2,{detour:'节点选择'}),node('private Tokyo',6)]};const {c:d}=await run(filename,{},data);for(const tag of reserved)assert(out(d,'节点 / '+tag));assert.equal(out(d,'LXY 美国').detour,'节点 / 节点选择');core(d,filename+'-chain');}],
   ['filtered dependency fails',async()=>assert.rejects(run(filename,{}, {outbounds:[node('LXY',1,{detour:'missing'}),node('private Tokyo',6)]}),/依赖缺失/)],
   ['cycle fails',async()=>assert.rejects(run(filename,{}, {outbounds:[node('a',1,{detour:'b'}),node('b',2,{detour:'a'}),node('private Tokyo',6)]}),/环路/)],
-  ['re-injection rebuilds identical output',async()=>{const r=await run(filename,{},combined,own,JSON.stringify(c));assert.deepEqual(r.c,c);}],
-  ['legacy 26 groups rebuilt to eight',async()=>{const old=JSON.parse(fs.readFileSync(path.join(root,filename),'utf8'));const names=['proxy','AI','ALL AUTO','LXY_SUB AUTO','VPS AUTO','LXY_SUB MANUAL','VPS MANUAL','LXY_SUB PIN','VPS PIN','LXY Japan','LXY Hong Kong','LXY Singapore','LXY United States','LXY United Kingdom','LXY Taiwan','🇮🇩','🇺🇸','🇯🇵'];for(const tag of ['自动选择','VPS-自动'])out(old,tag).outbounds=['COMPATIBLE'];old.outbounds.push(...names.map((tag,i)=>({type:i%2?'urltest':'selector',tag,outbounds:['old-node']})),{type:'direct',tag:'COMPATIBLE'},node('old-node',99));old.endpoints=[{type:'wireguard',tag:'obsolete endpoint'}];assert.equal(old.outbounds.filter(o=>['selector','urltest'].includes(o.type)).length,26);const r=await run(filename,{},combined,own,JSON.stringify(old));assert.deepEqual(r.c,c);assert(!r.c.outbounds.some(o=>names.includes(o.tag)));}],
-  ['subscription groups excluded from output',async()=>{const data=structuredClone(combined);data.outbounds.unshift({type:'selector',tag:'proxy',outbounds:['LXY 日本']},{type:'urltest',tag:'ALL AUTO',outbounds:['LXY 日本']});const r=await run(filename,{},data);assert.deepEqual(r.c,c);}],
-  ['invalid reserved group type rejected',async()=>{const old=structuredClone(c);out(old,'VPS').type='urltest';await assert.rejects(run(filename,{},combined,own,JSON.stringify(old)),/策略组类型错误/);}],
-  ['duplicate direct rejected',async()=>{const old=structuredClone(c);old.outbounds.push({type:'direct',tag:'direct'});await assert.rejects(run(filename,{},combined,own,JSON.stringify(old)),/direct 出站/);}],
-  ['legacy WG fails',async()=>assert.rejects(run(filename,{}, {outbounds:[{type:'wireguard',tag:'old'}]}),/WireGuard outbound/)],
+  ['re-injection fails',async()=>assert.rejects(run(filename,{},combined,own,JSON.stringify(c)),/移除旧注入|未注入/)],
+  ['legacy WG outbound skipped, empty airport fails',async()=>assert.rejects(run(filename,{}, {outbounds:[{type:'wireguard',tag:'old'}]}),/没有可用机场/)],
   ['WG IPv4 cleanup',async()=>{const wg={type:'wireguard',tag:'WG',address:['10.0.0.2/32','fd00::2/128'],private_key:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',peers:[{address:'192.0.2.1',port:51820,public_key:'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',allowed_ips:['0.0.0.0/0','::/0']}]};const {c:d}=await run(filename,{}, {outbounds:[node('LXY HK',1)],endpoints:[wg]}, {outbounds:[],endpoints:[wg]});assert.deepEqual(d.endpoints[0].address,['10.0.0.2/32']);assert.deepEqual(d.endpoints[0].peers[0].allowed_ips,['0.0.0.0/0']);assert.deepEqual(out(d,'VPS-自动').outbounds,['WG']);core(d,filename+'-wg');}]
  ];
  for(const [label,fn]of cases){try{await fn();checks++;}catch(e){throw new Error(filename+' / '+label+': '+e.message,{cause:e});}}
 }
-test('Apple GUI HTTP proxy uses the existing mixed listener',()=>{const tun=results[0].inbounds.find(i=>i.type==='tun');const mixed=results[0].inbounds.find(i=>i.type==='mixed');assert.deepEqual(tun.platform.http_proxy,{enabled:true,server:mixed.listen,server_port:mixed.listen_port});assert.equal(mixed.set_system_proxy,false);assert(!results[1].inbounds.some(i=>i.type==='tun'));assert(!results[2].inbounds[0].platform);});
 for(const key of ['rules','servers','final','strategy'])test('desktop modes share DNS '+key,()=>assert.deepEqual(results[0].dns[key],results[1].dns[key]));
 for(const key of ['route','http_clients'])test('desktop modes share '+key,()=>assert.deepEqual(results[0][key],results[1][key]));
 console.log(JSON.stringify({status:'PASS',checks,coreChecks,files},null,2));

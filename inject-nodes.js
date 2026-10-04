@@ -1,5 +1,6 @@
 // Sub-Store 文件脚本，sing-box 1.14.2。最终节点来自组合订阅 YBsSB2。
 // 保留香港；固定 IPv4；机场和 VPS 分开测速；空池停止生成，不回退直连。
+// 单个不认识的节点类型只会被跳过并计数；重名节点自动加后缀；配置缩进后体积也必须低于 4 MiB。
 // 参数只填写内部订阅名称，不能填写订阅 URL、token 或节点密钥。
 const args = typeof $arguments === 'object' && $arguments ? $arguments : {};
 const known = new Set(['name','type','vps_name','vps_type']);
@@ -23,6 +24,7 @@ async function read(name, type) {
   let data;
   try {data = typeof raw === 'string' ? JSON.parse(raw) : clone(raw);}
   catch (_) {throw new Error('订阅转换输出不是合法 JSON');}
+  if (Array.isArray(data)) data = {outbounds:data};
   if (!data || !Array.isArray(data.outbounds)) throw new Error('订阅转换结果缺少 outbounds');
   return data;
 }
@@ -30,29 +32,23 @@ let config;
 try {config = JSON.parse(typeof $content !== 'undefined' ? $content : $files[0]);}
 catch (_) {throw new Error('文件源必须是仓库中的三端 JSON 模板');}
 if (!config || !Array.isArray(config.outbounds)) throw new Error('模板缺少 outbounds');
-// 每次从组合订阅重建节点。兼容旧注入追加的出站，清理后固定为八个分组。
+// 每次从原始模板构建；防止误接在旧 Xream 注入之后，造成重复或混池。
 const groups = ['节点选择','自动选择','VPS','VPS-自动','AI工具','漏网之鱼','🎯 全球直连','GLOBAL'];
 const reserved = new Set([...groups,'direct']);
 for (const tag of groups) if (config.outbounds.filter(o=>o.tag===tag).length !== 1) throw new Error('模板策略组缺失或重名：' + tag);
-for (const tag of groups) {
+if (config.outbounds.some(o=>!reserved.has(o.tag))) throw new Error('请移除旧注入脚本，并使用原始 JSON 模板');
+for (const tag of ['自动选择','VPS-自动']) {
   const group=config.outbounds.find(o=>o.tag===tag);
-  const expectedType=['自动选择','VPS-自动'].includes(tag)?'urltest':'selector';
-  if (group.type !== expectedType) throw new Error('模板策略组类型错误：' + tag + '，请刷新仓库模板');
+  if (group.type !== 'urltest' || array(group.outbounds).length) throw new Error('请使用未注入的测速模板');
 }
-const direct=config.outbounds.filter(o=>o.tag==='direct');
-if (direct.length!==1 || direct[0].type!=='direct') throw new Error('模板 direct 出站缺失、重名或类型错误');
-const removedOutbounds=config.outbounds.filter(o=>!reserved.has(o.tag));
-const removedGroups=removedOutbounds.filter(o=>['selector','urltest'].includes(o.type)).length;
-// 只保留模板策略定义和 direct；其余节点/端点重新读取，避免旧订阅分组混入。
-config.outbounds=[...groups.map(tag=>config.outbounds.find(o=>o.tag===tag)),direct[0]];
-delete config.endpoints;
 const combined = await read(name,'collection');
 // 仅用 VPS 单订阅辨认来源，不把组合中未选入的节点额外添加到最终配置。
 const vpsSource = await read(vpsName,subType(args.vps_type,'subscription'));
 const nonNodes = new Set(['selector','urltest','direct','block','dns','bridge']);
 const supported = new Set(['socks','http','shadowsocks','vmess','trojan','vless','hysteria',
   'hysteria2','tuic','naive','ssh','shadowtls','anytls']);
-const info = /官网|剩余|流量|套餐|免费|到期|过期|订阅|Expire[ _-]*Date|Traffic|Bandwidth|\d+(?:\.\d+)?\s*(?:GB|TB)(?:$|[^a-z])/i;
+// 只匹配明确的“信息节点”关键词；不再按单独的 GB/TB 数字或“订阅”“免费”删除，避免误伤 10Gb 专线等正常节点。
+const info = /官网|剩余|流量|套餐|到期|过期|Expire[ _-]*Date|Traffic|Bandwidth/i;
 function records(data) {
   return [...array(data.outbounds).map(node=>({node,endpoint:false})),
     ...array(data.endpoints).map(node=>({node,endpoint:true}))]
@@ -69,13 +65,18 @@ function identity(record) {
 }
 const vpsIDs = new Set(records(vpsSource).map(identity));
 const nodes=[], endpoints=[], airport=[], vps=[], identities=new Map(), tags=new Map(), used=new Set(reserved);
-let filteredIPv6=0, removedInfo=0, duplicates=0;
+let filteredIPv6=0, removedInfo=0, duplicates=0, skippedUnsupported=0;
+const unsupportedTypes=new Map(), ambiguous=new Set();   // 只记录类型和数量，不记录节点名或凭据
 for (const record of records(combined)) {
   const raw=record.node;
   if (typeof raw.tag !== 'string' || !raw.tag.trim()) throw new Error('节点缺少名称');
-  if (info.test(raw.tag)) {removedInfo++;continue;}
-  if (!record.endpoint && raw.type === 'wireguard') throw new Error('旧 WireGuard outbound 需转换为 endpoint');
-  if (record.endpoint ? raw.type !== 'wireguard' : !supported.has(raw.type)) throw new Error('不支持的节点类型：' + raw.type);
+  const id=identity(record), isVps=vpsIDs.has(id);
+  if (!isVps && info.test(raw.tag)) {removedInfo++;continue;}   // 已识别为自建 VPS 的节点不参与信息过滤
+  const legacyWireGuard=!record.endpoint && raw.type === 'wireguard';
+  if (legacyWireGuard || (record.endpoint ? raw.type !== 'wireguard' : !supported.has(raw.type))) {
+    skippedUnsupported++; unsupportedTypes.set(raw.type,(unsupportedTypes.get(raw.type) || 0)+1);
+    continue;                                                  // 跳过并计数；池为空时由下面的检查报错
+  }
   if (typeof raw.server === 'string' && raw.server.includes(':')) {filteredIPv6++;continue;}
   const node=clone(raw);
   if (record.endpoint) {
@@ -86,7 +87,6 @@ for (const record of records(combined)) {
       throw new Error('WireGuard 节点没有完整可用的 IPv4 配置');
     }
   }
-  const id=identity(record), isVps=vpsIDs.has(id);
   let tag=identities.get(id);
   if (!tag) {
     const base=reserved.has(raw.tag) ? '节点 / ' + raw.tag : raw.tag;
@@ -98,8 +98,8 @@ for (const record of records(combined)) {
     (record.endpoint ? endpoints : nodes).push(node);
     (isVps ? vps : airport).push(tag);
   } else duplicates++;
-  if (tags.has(raw.tag) && tags.get(raw.tag)!==tag) throw new Error('组合订阅存在重名但不同配置的节点，请先重命名');
-  tags.set(raw.tag,tag);
+  if (!tags.has(raw.tag)) tags.set(raw.tag,tag);
+  else if (tags.get(raw.tag)!==tag) ambiguous.add(raw.tag);   // 同名但配置不同：各自保留（自动加后缀）
 }
 if (!airport.length) throw new Error('组合订阅中没有可用机场节点，停止生成');
 if (!vps.length) throw new Error('组合订阅中没有可识别的 IPv4 VPS 节点，请核对 VPS 来源和组合选项，停止生成');
@@ -107,6 +107,7 @@ for (const node of [...nodes,...endpoints]) {
   if (node.detour && node.detour!=='direct') {
     const target=tags.get(node.detour);
     if (!target) throw new Error('节点链式拨号依赖缺失或已被过滤');
+    if (ambiguous.has(node.detour)) throw new Error('链式拨号目标存在重名节点，请先重命名');
     node.detour=target;
   }
 }
@@ -128,10 +129,6 @@ for (const [tag,pool] of [
 config.outbounds.push(...nodes);
 if (endpoints.length) config.endpoints=endpoints;
 else delete config.endpoints;
-const finalGroups=config.outbounds.filter(o=>['selector','urltest'].includes(o.type));
-if (finalGroups.length!==groups.length || finalGroups.some((o,i)=>o.tag!==groups[i])) {
-  throw new Error('最终分组数量或顺序错误，停止生成');
-}
 // 节点依赖、策略引用和环路检查；从不打印订阅或节点对象。
 const objects=[...config.outbounds,...endpoints], graph=new Map();
 for (const node of objects) {
@@ -147,7 +144,7 @@ function visit(tag) {
   visiting.delete(tag);visited.add(tag);
 }
 for (const tag of graph.keys()) visit(tag);
-// 紧凑输出：完整保留规则，避免超过客户端 4 MiB gRPC 传输上限。
+// 紧凑输出，并保证即使被客户端按 2 空格重新格式化，体积仍低于 4 MiB gRPC 传输上限。
 function utf8Length(text) {
   let bytes=0;
   for (const char of text) {
@@ -158,12 +155,14 @@ function utf8Length(text) {
 }
 const content=JSON.stringify(config);
 const outputBytes=utf8Length(content);
+const prettyBytes=utf8Length(JSON.stringify(config,null,2));
 const maxOutputBytes=4*1024*1024-64*1024; // 为消息包装预留 64 KiB。
-if (outputBytes>maxOutputBytes) {
-  throw new Error('紧凑配置仍过大：' + outputBytes + ' 字节，上限 ' + maxOutputBytes +
+if (prettyBytes>maxOutputBytes) {
+  throw new Error('配置过大：紧凑 ' + outputBytes + ' 字节，缩进后 ' + prettyBytes + ' 字节，上限 ' + maxOutputBytes +
     ' 字节（4 MiB 传输上限预留 64 KiB）。请减少组合订阅选入的节点或节点附加数据，再重新生成');
 }
 $content=content;
 console.log('[组合订阅注入] 完成：机场 ' + airport.length + '，VPS ' + vps.length +
   '，IPv6 节点过滤 ' + filteredIPv6 + '，信息过滤 ' + removedInfo + '，去重 ' + duplicates +
-  '；分组 8/8；清理旧分组 ' + removedGroups + '；香港保留；紧凑配置 ' + outputBytes + ' 字节');
+  '，不支持类型跳过 ' + skippedUnsupported + (skippedUnsupported ? '（' + [...unsupportedTypes].map(([k,v])=>k+'×'+v).join('、') + '）' : '') +
+  '；香港保留；紧凑 ' + outputBytes + ' 字节，缩进后 ' + prettyBytes + ' 字节');
