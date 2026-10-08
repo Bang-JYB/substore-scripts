@@ -1,0 +1,185 @@
+{
+  "$schema": "https://sing-box.sagernet.org/schema.json",
+  "log": {
+    "level": "warn",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "https",
+        "tag": "vps-dns",
+        "server": "223.5.5.5"
+      },
+      {
+        "type": "https",
+        "tag": "proxy-dns",
+        "server": "8.8.8.8",
+        "detour": "VPS选择"
+      }
+    ],
+    "final": "proxy-dns",
+    "strategy": "prefer_ipv4",
+    "reverse_mapping": true,
+    "rules": [
+      {
+        "clash_mode": "Direct",
+        "server": "vps-dns"
+      },
+      {
+        "clash_mode": "Global",
+        "server": "proxy-dns"
+      },
+      {
+        "domain_suffix": [
+          "cn",
+          "lan",
+          "local"
+        ],
+        "server": "vps-dns"
+      },
+      {
+        "rule_set": [
+          "geosite-cn",
+          "geosite-private"
+        ],
+        "server": "vps-dns"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 7890,
+      "set_system_proxy": false
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "selector",
+      "tag": "VPS选择",
+      "outbounds": [],
+      "default": "VPS自动",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "urltest",
+      "tag": "VPS自动",
+      "outbounds": [],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "5m",
+      "tolerance": 50,
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "direct",
+      "tag": "direct",
+      "domain_resolver": {
+        "server": "vps-dns",
+        "strategy": "prefer_ipv4"
+      }
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
+      },
+      {
+        "clash_mode": "Direct",
+        "outbound": "direct"
+      },
+      {
+        "clash_mode": "Global",
+        "outbound": "VPS选择"
+      },
+      {
+        "domain_suffix": [
+          "cn",
+          "lan",
+          "local"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "rule_set": [
+          "geosite-cn",
+          "geosite-private"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "action": "resolve"
+      },
+      {
+        "rule_set": "geoip-cn",
+        "outbound": "direct"
+      }
+    ],
+    "final": "VPS选择",
+    "auto_detect_interface": true,
+    "default_domain_resolver": {
+      "server": "vps-dns",
+      "strategy": "prefer_ipv4"
+    },
+    "rule_set": [
+      {
+        "type": "remote",
+        "tag": "geosite-cn",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-cn.srs",
+        "http_client": "rules-via-vps",
+        "update_interval": "168h"
+      },
+      {
+        "type": "remote",
+        "tag": "geosite-private",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-private.srs",
+        "http_client": "rules-via-vps",
+        "update_interval": "168h"
+      },
+      {
+        "type": "remote",
+        "tag": "geoip-cn",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs",
+        "http_client": "rules-via-vps",
+        "update_interval": "168h"
+      }
+    ]
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "cache-vps-notun.db",
+      "cache_id": "vps-notun-v1"
+    },
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "default_mode": "Rule"
+    }
+  },
+  "http_clients": [
+    {
+      "tag": "rules-via-vps",
+      "engine": "go",
+      "version": 1,
+      "detour": "VPS选择",
+      "domain_resolver": {
+        "server": "vps-dns",
+        "strategy": "prefer_ipv4"
+      }
+    }
+  ]
+}
