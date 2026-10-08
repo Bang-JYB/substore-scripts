@@ -11,6 +11,20 @@
 模板的节点列表留空是正常的；须经过脚本生成后再导入客户端。
 Sub-Store 订阅转换支持的服务器代理协议可以使用；WireGuard endpoint 等非服务器 outbounds 不在此脚本支持范围。
 
+## 各平台模板
+
+| 场景 | 模板文件 | 入站设置 |
+| --- | --- | --- |
+| 桌面 TUN | config_vps_standalone.json | TUN + 本机混合代理 7890 |
+| 桌面 noTUN | config_vps_notun.json | 只有本机 HTTP/SOCKS 混合代理 7890，不自动设置系统代理 |
+| Android 手机 | config_vps_android.json | 只有 VPN/TUN，保留 IPv4/IPv6，自动测速间隔 30 分钟 |
+
+三份模板使用同一个 inject-vps-standalone.js，国内外分流规则一致。
+分别建立远程文件，将模板链接末尾文件名换为对应文件。脚本地址仍为 #name=VPS；只需修改单订阅名称。
+noTUN 不需要额外添加 mode=mixed，模板本身就没有 TUN。Android 使用默认 mode=tun，勿添加 mode=mixed。
+Android 在 sing-box 客户端导入生成文件的链接，允许系统 VPN 权限并启动，选择 Rule／规则模式。
+手机模板按 Android sing-box 配置；iPhone 需使用兼容 sing-box 1.14 字段的客户端，不能当作通用 Surge/其他客户端配置直接导入。
+
 ## Sub-Store 使用步骤
 
 1. 在“订阅”中新建单订阅，例如内部名称 VPS，放入几个 VPS 节点，先确认订阅能预览。
