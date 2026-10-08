@@ -1,0 +1,44 @@
+{
+  "$schema": "https://sing-box.sagernet.org/schema.json",
+  "log": {"level": "warn", "timestamp": true},
+  "dns": {
+    "servers": [
+      {"type": "https", "tag": "vps-dns", "server": "223.5.5.5"},
+      {"type": "https", "tag": "proxy-dns", "server": "8.8.8.8", "detour": "VPS选择"}
+    ],
+    "final": "proxy-dns",
+    "strategy": "prefer_ipv4",
+    "reverse_mapping": true
+  },
+  "inbounds": [
+    {
+      "type": "tun", "tag": "tun-in",
+      "address": ["172.19.0.1/30", "fdfe:dcba:9876::1/126"],
+      "auto_route": true, "strict_route": true, "stack": "mixed", "mtu": 1400,
+      "dns_mode": "hijack"
+    },
+    {
+      "type": "mixed", "tag": "mixed-in", "listen": "127.0.0.1", "listen_port": 7890,
+      "set_system_proxy": false
+    }
+  ],
+  "outbounds": [
+    {"type": "selector", "tag": "VPS选择", "outbounds": [], "default": "VPS自动", "interrupt_exist_connections": false},
+    {"type": "urltest", "tag": "VPS自动", "outbounds": [], "url": "https://www.gstatic.com/generate_204", "interval": "5m", "tolerance": 50, "interrupt_exist_connections": false},
+    {"type": "direct", "tag": "direct", "domain_resolver": {"server": "vps-dns", "strategy": "prefer_ipv4"}}
+  ],
+  "route": {
+    "rules": [
+      {"protocol": "dns", "action": "hijack-dns"},
+      {"ip_is_private": true, "outbound": "direct"},
+      {"clash_mode": "Direct", "outbound": "direct"}
+    ],
+    "final": "VPS选择",
+    "auto_detect_interface": true,
+    "default_domain_resolver": {"server": "vps-dns", "strategy": "prefer_ipv4"}
+  },
+  "experimental": {
+    "cache_file": {"enabled": true, "path": "cache-vps.db", "cache_id": "vps-standalone-v1"},
+    "clash_api": {"external_controller": "127.0.0.1:9090", "default_mode": "Rule"}
+  }
+}
