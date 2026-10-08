@@ -64,8 +64,10 @@ TUN 默认支持 IPv4/IPv6 地址，在桌面客户端开启 TUN，Android 使�
 
 - VPS自动使用 HTTPS 请求测试延迟，间隔 5 分钟、容差 50 ms；这是延迟/连通性测试，不是下载带宽测试。
 - 默认选择 VPS自动；手动选节点后不会因为自动测试而改变手动选择。
-- 私有地址直连，其他流量通过 VPS选择；没有附加机场分组、国家过滤或中国网站直连规则。
-- DNS 支持 A 和 AAAA，不屏蔽 IPv6；节点域名用直连阿里 DoH 解析，业务域名用选中的 VPS 访问 Google DoH。
+- Rule 模式：局域网、国内域名和国内 IP 直连，其余流量通过 VPS选择。Direct 模式全部直连，Global 模式除局域网外全部走 VPS。
+- DNS 支持 A 和 AAAA，不屏蔽 IPv6；节点域名、国内域名用直连阿里 DoH，其他域名用 VPS 访问 Google DoH；Direct 模式 DNS 也直连。
+- 首次启动需通过可用 VPS 下载 geosite-cn、geosite-private、geoip-cn 三个规则集，随后缓存并每 7 天更新。国内应用是否直连取决于其域名/IP 是否命中规则；规则未涵盖的海外服务仍走 VPS。
+- 要使用国内外分流，请将客户端模式设为 Rule／规则模式。更新配置后重启客户端和出现断线的应用，让已有连接重新建立。
 - IPv6 地址节点需要客户端网络具备可用 IPv6；不能凭 IPv6 地址自动推导 IPv4。
 - 保留协议、TLS/SNI、服务器地址和认证字段，不会把单个 IP 节点拆成凭空生成的双栈节点。
 - 节点按配置去重；重名且配置不同、缺失链式依赖或循环依赖时停止生成，防止错误配置。
@@ -78,7 +80,8 @@ TUN 默认支持 IPv4/IPv6 地址，在桌面客户端开启 TUN，Android 使�
 
 使用虚构 IPv4、IPv6、域名节点验证单订阅读取、手动和自动候选、TLS 保留、
 去重、重名、链式依赖以及错误参数。TUN 和 mixed 两种生成配置均通过官方 sing-box 1.14.2 check。
-未读取真实节点密钥，未进行真实节点连通性或真实 Sub-Store 后端运行验收。
+国内外分流修复后再次通过 TUN/mixed 配置检查，并使用官方规则集验证 qq.com、baidu.com、223.5.5.5 命中国内规则，google.com、8.8.8.8 不命中国内规则。
+未读取真实节点密钥，未进行真实应用连通性或真实 Sub-Store 后端运行验收。
 
 参考：
 - https://sing-box.sagernet.org/configuration/outbound/selector/
