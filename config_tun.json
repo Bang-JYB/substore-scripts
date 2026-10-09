@@ -147,7 +147,7 @@
       "tag": "自动选择",
       "outbounds": [],
       "url": "https://www.gstatic.com/generate_204",
-      "interval": "30m",
+      "interval": "10m",
       "tolerance": 50
     },
     {
@@ -161,7 +161,7 @@
       "tag": "VPS-自动",
       "outbounds": [],
       "url": "https://www.gstatic.com/generate_204",
-      "interval": "30m",
+      "interval": "10m",
       "tolerance": 50
     },
     {
@@ -423,3 +423,4 @@
     }
   }
 }
+
