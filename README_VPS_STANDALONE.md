@@ -17,7 +17,7 @@ Sub-Store 订阅转换支持的服务器代理协议可以使用；WireGuard end
 | --- | --- | --- |
 | 桌面 TUN | config_vps_standalone.json | TUN + 本机混合代理 7890 |
 | 桌面 noTUN | config_vps_notun.json | 只有本机 HTTP/SOCKS 混合代理 7890，不自动设置系统代理 |
-| Android 手机 | config_vps_android.json | 只有 VPN/TUN，保留 IPv4/IPv6，自动测速间隔 30 分钟 |
+| Android 手机 | config_vps_android.json | 只有 VPN/TUN，保留 IPv4/IPv6，自动测速间隔 10 分钟 |
 
 三份模板使用同一个 inject-vps-standalone.js，国内外分流规则一致。
 分别建立远程文件，将模板链接末尾文件名换为对应文件。脚本地址仍为 #name=VPS；只需修改单订阅名称。
@@ -101,3 +101,4 @@ TUN 默认支持 IPv4/IPv6 地址，在桌面客户端开启 TUN，Android 使�
 - https://sing-box.sagernet.org/configuration/outbound/selector/
 - https://sing-box.sagernet.org/configuration/outbound/urltest/
 - https://sing-box.sagernet.org/configuration/shared/dial/
+
