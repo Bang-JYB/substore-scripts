@@ -175,8 +175,7 @@
         "outbound": "direct"
       },
       {
-        "action": "resolve",
-        "server": "vps-dns"
+        "action": "resolve"
       },
       {
         "rule_set": "geoip-cn",
