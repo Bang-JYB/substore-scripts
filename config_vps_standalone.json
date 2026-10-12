@@ -32,6 +32,24 @@
       },
       {
         "domain_suffix": [
+          "qq.com",
+          "qqmusic.com",
+          "gtimg.com",
+          "gtimg.cn",
+          "qpic.cn",
+          "qlogo.cn"
+        ],
+        "server": "vps-dns"
+      },
+      {
+        "rule_set": [
+          "geosite-apple",
+          "geosite-microsoft"
+        ],
+        "server": "vps-dns"
+      },
+      {
+        "domain_suffix": [
           "cn",
           "lan",
           "local"
@@ -44,6 +62,21 @@
           "geosite-private"
         ],
         "server": "vps-dns"
+      },
+      {
+        "query_type": [
+          "A",
+          "AAAA"
+        ],
+        "action": "evaluate",
+        "server": "vps-dns",
+        "tag": "domestic-check",
+        "timeout": "2s"
+      },
+      {
+        "match_response": "domestic-check",
+        "rule_set": "geoip-cn",
+        "action": "respond"
       }
     ]
   },
@@ -118,6 +151,24 @@
       },
       {
         "domain_suffix": [
+          "qq.com",
+          "qqmusic.com",
+          "gtimg.com",
+          "gtimg.cn",
+          "qpic.cn",
+          "qlogo.cn"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "rule_set": [
+          "geosite-apple",
+          "geosite-microsoft"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "domain_suffix": [
           "cn",
           "lan",
           "local"
@@ -132,7 +183,8 @@
         "outbound": "direct"
       },
       {
-        "action": "resolve"
+        "action": "resolve",
+        "server": "vps-dns"
       },
       {
         "rule_set": "geoip-cn",
@@ -167,6 +219,22 @@
         "tag": "geoip-cn",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-cn.srs",
+        "http_client": "rules-via-vps",
+        "update_interval": "168h"
+      },
+      {
+        "type": "remote",
+        "tag": "geosite-apple",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/apple.srs",
+        "http_client": "rules-via-vps",
+        "update_interval": "168h"
+      },
+      {
+        "type": "remote",
+        "tag": "geosite-microsoft",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/microsoft.srs",
         "http_client": "rules-via-vps",
         "update_interval": "168h"
       }
