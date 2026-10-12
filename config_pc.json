@@ -70,6 +70,24 @@
         "server": "fakeip"
       },
       {
+        "domain_suffix": [
+          "qq.com",
+          "qqmusic.com",
+          "gtimg.com",
+          "gtimg.cn",
+          "qpic.cn",
+          "qlogo.cn"
+        ],
+        "server": "ali"
+      },
+      {
+        "rule_set": [
+          "geosite-apple",
+          "geosite-microsoft"
+        ],
+        "server": "ali"
+      },
+      {
         "rule_set": [
           "geosite-cn",
           "geosite-private",
@@ -91,14 +109,13 @@
           }
         ],
         "action": "evaluate",
-        "server": "google",
-        "client_subnet": "223.5.5.0/24",
+        "server": "ali",
         "timeout": "2s"
       },
       {
         "match_response": true,
         "rule_set": "geoip-cn",
-        "server": "ali"
+        "action": "respond"
       },
       {
         "query_type": "A",
@@ -212,9 +229,7 @@
   "route": {
     "rules": [
       {
-        "network": "udp",
-        "port": 443,
-        "action": "reject"
+        "action": "sniff"
       },
       {
         "ip_version": 6,
@@ -235,6 +250,24 @@
       {
         "clash_mode": "Global",
         "outbound": "GLOBAL"
+      },
+      {
+        "domain_suffix": [
+          "qq.com",
+          "qqmusic.com",
+          "gtimg.com",
+          "gtimg.cn",
+          "qpic.cn",
+          "qlogo.cn"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "rule_set": [
+          "geosite-apple",
+          "geosite-microsoft"
+        ],
+        "outbound": "direct"
       },
       {
         "rule_set": "geosite-private",
@@ -267,9 +300,12 @@
         "outbound": "🎯 全球直连"
       },
       {
+        "network": "udp",
+        "port": 443,
+        "action": "reject"
+      },
+      {
         "rule_set": [
-          "geosite-apple",
-          "geosite-microsoft",
           "geosite-foreign"
         ],
         "outbound": "节点选择"
@@ -411,4 +447,3 @@
     }
   }
 }
-
