@@ -243,7 +243,7 @@
       "tag": "rules-via-vps",
       "engine": "go",
       "version": 1,
-      "detour": "VPS选择",
+      "detour": "direct",
       "domain_resolver": {
         "server": "vps-dns",
         "strategy": "prefer_ipv4"
