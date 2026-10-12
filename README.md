@@ -35,7 +35,7 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 
 ## 规则下载与 Windows 更新
 
-模板本身约 10 KB，节点脚本在生成结果超过 1 MiB 前会停止，不再把大规则内嵌到 Sub-Store 输出。业务规则在客户端首次启动时通过当前“节点选择”下载，并固定 HTTP/1.1；之后由 sing-box 缓存并每 7 天更新一次。首次启动前，`节点选择`必须能连接到外网。
+模板本身约 10 KB，节点脚本在生成结果超过 1 MiB 前会停止，不再把大规则内嵌到 Sub-Store 输出。业务规则在客户端首次启动时通过 direct 直连下载，并固定 HTTP/1.1；之后由 sing-box 缓存并每 7 天更新一次。首次启动不再依赖“节点选择”，但设备网络需要能直连访问 raw.githubusercontent.com。
 
 `NGHTTP2_ENHANCE_YOUR_CALM` 发生在 Windows 客户端下载远程配置时，往往早于新配置启动。此次重写降低了下载内容，但不能用配置字段直接控制客户端自己的内部 HTTP/2/gRPC 通道。若仍出现该错误，用 Sub-Store 的“预览”先确认生成成功，再下载生成的本地 JSON 导入客户端；同时查看 Sub-Store 反向代理和后端的 HTTP/2 日志。
 
@@ -57,4 +57,4 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 - 原版三份模板保留固定 IPv4，UDP 443 限制移到国内直连规则之后；VPS 三份模板继续保留双栈。端口、系统代理设置和测速间隔不变。
 - 更新时刷新 Sub-Store 远程模板缓存，重新生成并更新客户端配置，然后重启客户端并重新打开 QQ 音乐。
 - 六份虚构节点生成的配置通过 sing-box 1.14.2 check。两套配置在本机隔离测试中模拟代理 DNS 不可用，QQ 音乐/苹果/微软与未收录国内域名解析通过；不是实际设备播放稳定性验证。
-- 苹果/微软及国内远程规则集需要首次成功下载并缓存；这次没有消除首次下载对可用代理节点的依赖。
+- 规则集首次下载与后续更新均使用直连，不依赖可用代理节点。2026-10-12 使用 sing-box 1.14.2、禁用缓存、不可用测试代理节点，原版 14 份及 VPS 版 5 份真实规则全部下载并成功启动。此结果适用于测试时本机网络，其他网络仍需实测。
