@@ -4,11 +4,11 @@
 
 - 固定 IPv4：DNS 只解析 IPv4，AAAA 返回空结果，IPv6 流量拒绝。
 - 保留香港节点。
-- UDP 443 拒绝；TCP 443 和其他 UDP 不受影响。
+- 规则模式下，国内直连、QQ 音乐及苹果/微软直连规则先于 UDP 443 限制；其余 UDP 443 仍拒绝。
 - 最终节点来自组合订阅 `YBsSB2`，以单订阅 `VPS` 识别自建节点。
 - 三端统一八个策略组：`节点选择`、`自动选择`、`VPS`、`VPS-自动`、`AI工具`、`漏网之鱼`、`🎯 全球直连`、`GLOBAL`。
 - `自动选择`只测速机场节点，`VPS-自动`只测速 VPS；`AI工具`默认 VPS。
-- DNS 结构按 qichiyuhub 的 1.14X Windows 模板重写：阿里、腾讯、本地、Google、FakeIP 与响应评估逻辑仍在。为满足禁用 IPv6，额外把 AAAA 查询返回空答案。
+- DNS 结构按 qichiyuhub 的 1.14X Windows 模板重写：阿里、腾讯、本地、Google、FakeIP 与响应评估逻辑仍在；国内 IP 判断改为先查询直连阿里 DNS。为满足禁用 IPv6，额外把 AAAA 查询返回空答案。
 
 ## 选择模板
 
@@ -49,3 +49,12 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 - [sing-box Rule Set](https://sing-box.sagernet.org/configuration/rule-set/)
 - [qichiyuhub/rule Windows 1.14X 模板](https://github.com/qichiyuhub/rule/blob/main/config/singbox/1.14X/windows.json)
 - [MetaCubeX meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat/tree/sing)
+
+## 国内播放与服务直连修复（2026-10-12）
+
+- 在 Rule/规则模式下，QQ 音乐相关 QQ/QQMusic/GTImg 域名、完整苹果和微软规则集同时使用直连 DNS 与 direct 出站。Global/全局模式仍遵循全局代理选择。
+- 国内 IP 兜底判断先使用直连 DNS，减少代理节点不可用对国内域名解析的影响；国外流量仍按原有代理/FakeIP 分流。
+- 原版三份模板保留固定 IPv4，UDP 443 限制移到国内直连规则之后；VPS 三份模板继续保留双栈。端口、系统代理设置和测速间隔不变。
+- 更新时刷新 Sub-Store 远程模板缓存，重新生成并更新客户端配置，然后重启客户端并重新打开 QQ 音乐。
+- 六份虚构节点生成的配置通过 sing-box 1.14.2 check。两套配置在本机隔离测试中模拟代理 DNS 不可用，QQ 音乐/苹果/微软与未收录国内域名解析通过；不是实际设备播放稳定性验证。
+- 苹果/微软及国内远程规则集需要首次成功下载并缓存；这次没有消除首次下载对可用代理节点的依赖。
