@@ -231,7 +231,7 @@
       "tag": "rules-via-proxy",
       "engine": "go",
       "version": 1,
-      "detour": "节点选择",
+      "detour": "direct",
       "domain_resolver": {
         "server": "ali",
         "strategy": "ipv4_only"
