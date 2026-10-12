@@ -102,3 +102,11 @@ TUN 默认支持 IPv4/IPv6 地址，在桌面客户端开启 TUN，Android 使�
 - https://sing-box.sagernet.org/configuration/outbound/urltest/
 - https://sing-box.sagernet.org/configuration/shared/dial/
 
+## 国内播放与服务直连修复（2026-10-12）
+
+- 在 Rule/规则模式下，QQ 音乐相关 QQ/QQMusic/GTImg 域名、完整苹果和微软规则集同时使用直连 DNS 与 direct 出站。Global/全局模式仍遵循全局代理选择。
+- 国内 IP 兜底判断先使用直连 DNS，减少代理节点不可用对国内域名解析的影响；国外流量仍按原有代理/FakeIP 分流。
+- 原版三份模板保留固定 IPv4，UDP 443 限制移到国内直连规则之后；VPS 三份模板继续保留双栈。端口、系统代理设置和测速间隔不变。
+- 更新时刷新 Sub-Store 远程模板缓存，重新生成并更新客户端配置，然后重启客户端并重新打开 QQ 音乐。
+- 六份虚构节点生成的配置通过 sing-box 1.14.2 check。两套配置在本机隔离测试中模拟代理 DNS 不可用，QQ 音乐/苹果/微软与未收录国内域名解析通过；不是实际设备播放稳定性验证。
+- 苹果/微软及国内远程规则集需要首次成功下载并缓存；这次没有消除首次下载对可用代理节点的依赖。
