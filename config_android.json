@@ -81,6 +81,10 @@
         "server": "ali"
       },
       {
+        "rule_set": "geosite-github",
+        "server": "google"
+      },
+      {
         "rule_set": [
           "geosite-apple",
           "geosite-microsoft"
@@ -266,6 +270,10 @@
           "qlogo.cn"
         ],
         "outbound": "direct"
+      },
+      {
+        "rule_set": "geosite-github",
+        "outbound": "节点选择"
       },
       {
         "rule_set": [

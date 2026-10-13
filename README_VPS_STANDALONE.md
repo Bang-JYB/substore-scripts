@@ -126,3 +126,9 @@ TUN 默认支持 IPv4/IPv6 地址，在桌面客户端开启 TUN，Android 使�
 三份 VPS 模板的 route resolve 不再强制指定 vps-dns，而是使用 DNS 分流规则。已收录国内域名、QQ 音乐、苹果和微软仍使用直连 DNS；其他域名先查询直连 DNS 做国内 IP 判断，未匹配时使用 proxy-dns。避免国外域名绕过 DNS 分流后使用异常解析结果连接。节点服务器域名的直连解析、代理规则下载通道及 HTTP/SOCKS 7890 端口保持不变。
 
 更新时先刷新 Sub-Store 远程模板缓存，重新生成文件，再更新 Windows 客户端配置并停止/启动服务。保持同一手动节点，在 Rule 模式下重测 HTTP 代理连接；设备端实际恢复情况仍需验证。
+
+## GitHub 代理优先级修复（2026-10-13）
+
+上游微软完整规则集也包含 GitHub。六份模板均在苹果/微软直连规则之前增加 GitHub 专用路由与 DNS 规则：组合版使用节点选择与代理 Google DNS，VPS 独立版使用 VPS选择与 proxy-dns。覆盖范围由上游 github.srs 维护，包含主站、API、静态资源、原始文件和下载资源等。Direct/Global 模式仍遵循原有模式选择。
+
+刷新 Sub-Store 远程模板缓存，重新生成并更新客户端配置，然后停止/启动服务。保持 Rule 模式及同一可用节点，测试 github.com、api.github.com、raw.githubusercontent.com 和资源下载。

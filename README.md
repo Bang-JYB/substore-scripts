@@ -68,3 +68,9 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 5. 此方案保持小配置与远程更新，但没有缓存时仍需要可用节点，不能保证在所有节点不可用时启动。
 
 2026-10-12 恢复代理下载与上游 GitHub 规则地址。六份虚构节点生成的配置通过 sing-box 1.14.2 检查；未使用用户真实节点验证其下载连接。
+
+## GitHub 代理优先级修复（2026-10-13）
+
+上游微软完整规则集也包含 GitHub。六份模板均在苹果/微软直连规则之前增加 GitHub 专用路由与 DNS 规则：组合版使用节点选择与代理 Google DNS，VPS 独立版使用 VPS选择与 proxy-dns。覆盖范围由上游 github.srs 维护，包含主站、API、静态资源、原始文件和下载资源等。Direct/Global 模式仍遵循原有模式选择。
+
+刷新 Sub-Store 远程模板缓存，重新生成并更新客户端配置，然后停止/启动服务。保持 Rule 模式及同一可用节点，测试 github.com、api.github.com、raw.githubusercontent.com 和资源下载。
