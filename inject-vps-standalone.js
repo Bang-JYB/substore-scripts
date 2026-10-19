@@ -61,6 +61,7 @@ try {
 if (!Array.isArray(source?.outbounds)) throw new Error('订阅转换结果缺少 outbounds');
 // 1.14.2 server-based proxy types (include/registry.go and include/quic.go).
 // Endpoint/Tor/group/removed/unknown types are not subscription server proxies.
+// Sub-Store SS/Snell ShadowTLS wrappers may delegate their server to a validated hop.
 const supported = new Set(['shadowsocks', 'vmess', 'vless', 'trojan', 'hysteria', 'hysteria2',
   'tuic', 'anytls', 'naive', 'ssh', 'shadowtls', 'http', 'socks', 'snell']);
 const nodes = [], tags = [], seen = new Map(), originalTags = new Map();
@@ -68,7 +69,9 @@ const reserved = new Set(['VPS选择', 'VPS自动', 'direct']);
 let duplicates = 0;
 for (const raw of source.outbounds) {
   if (!raw || !supported.has(raw.type)) continue;
-  if (typeof raw.server !== 'string' || !raw.server.trim()) {
+  const wrapped = ['shadowsocks', 'snell'].includes(raw.type) && raw.server === undefined &&
+    typeof raw.detour === 'string' && raw.detour.trim();
+  if ((typeof raw.server !== 'string' || !raw.server.trim()) && !wrapped) {
     throw new Error('代理节点缺少有效 server 服务器地址：' + String(raw.tag ?? raw.type));
   }
   const id = identity(raw), original = String(raw.tag ?? '').trim();
@@ -108,6 +111,9 @@ for (const node of nodes) {
 }
 // 链式拨号必须能到达出口，避免自引用或环形依赖。
 const byTag = new Map(nodes.map(node => [node.tag, node]));
+for (const node of nodes) if (node.server === undefined && byTag.get(node.detour)?.type !== 'shadowtls') {
+  throw new Error('无 server 的包装节点必须依赖有效 ShadowTLS 出站：' + node.tag);
+}
 const checked = new Set();
 for (const start of tags) {
   const visiting = new Set();
@@ -119,12 +125,16 @@ for (const start of tags) {
   }
   for (const item of visiting) checked.add(item);
 }
+// Keep referenced ShadowTLS hops for detour but exclude them from policy selection.
+const helpers = new Set(nodes.filter(node => byTag.get(node.detour)?.type === 'shadowtls').map(node => node.detour));
+const selectable = tags.filter(tag => !helpers.has(tag));
+if (!selectable.length) throw new Error('单订阅中没有可选择的代理节点，ShadowTLS 辅助出站不能独立选用');
 const selector = clone(config.outbounds.find(node => node.tag === 'VPS选择'));
 const auto = clone(config.outbounds.find(node => node.tag === 'VPS自动'));
 const direct = clone(config.outbounds.find(node => node.tag === 'direct'));
-selector.outbounds = ['VPS自动', ...tags];
+selector.outbounds = ['VPS自动', ...selectable];
 selector.default = 'VPS自动';
-auto.outbounds = tags;
+auto.outbounds = selectable;
 direct.domain_resolver = {server: 'vps-dns', strategy};
 config.outbounds = [selector, auto, direct, ...nodes];
 config.dns.strategy = strategy;
@@ -135,4 +145,4 @@ if(rulesDir)for(const rule of config.route?.rule_set??[])if(rule.type==='remote'
 const output = JSON.stringify(config);
 if (new TextEncoder().encode(output).length > 1024 * 1024) throw new Error('生成配置超过 1 MiB，请减少订阅节点');
 $content = output;
-console.log('[VPS 独立订阅] ' + name + '：' + nodes.length + ' 个节点，去重 ' + duplicates + '；双栈 ' + strategy + '；' + mode);
+console.log('[VPS 独立订阅] ' + name + '：' + selectable.length + ' 个节点，去重 ' + duplicates + '；双栈 ' + strategy + '；' + mode);
