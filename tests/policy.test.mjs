@@ -64,3 +64,15 @@ test('optional offline seeds retain remote URL and update channel in both script
   for(const r of c.route.rule_set){assert.equal(r.type,'remote');assert.equal(r.initial_path,'seeds/{tag}.srs');assert.ok(r.url.startsWith('https://'));assert.ok(r.http_client);}
  }
 });
+for(const f of templates)test('rule downloads leave target DNS to proxy instead of domestic bootstrap '+f,()=>{
+ const c=JSON.parse(fs.readFileSync(path.join(root,f)));
+ for(const hc of c.http_clients.filter(x=>['节点选择','VPS选择'].includes(x.detour)))assert.ok(!hc.domain_resolver);
+});
+for(const f of templates)test('address families, DNS persistence and loopback management remain compatible '+f,()=>{
+ const c=JSON.parse(fs.readFileSync(path.join(root,f))),v=f.startsWith('config_vps_');
+ assert.equal(c.dns.strategy,v?'prefer_ipv4':'ipv4_only');
+ assert.equal(c.route.rules.some(r=>r.ip_version===6&&r.action==='reject'),!v);
+ assert.equal(c.experimental.cache_file.store_dns,true);
+ if(c.experimental.clash_api)assert.equal(c.experimental.clash_api.external_controller,'127.0.0.1:9090');
+ for(const i of c.inbounds.filter(i=>i.type==='tun')){assert.equal(i.mtu,1400);assert.equal(i.dns_mode,'hijack');assert.ok(!i.auto_redirect);assert.ok(!i.route_exclude_address_set);}
+});

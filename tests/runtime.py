@@ -131,7 +131,7 @@ class Core:
    if remote:
     source=tmp/(tag+'.json');source.write_text(json.dumps({'version':4,'rules':rules}))
     seed=tmp/(tag+'.srs');subprocess.run([BIN,'rule-set','compile',str(source),'-o',str(seed)],check=True,capture_output=True)
-    world.rule_bytes[tag+'.srs']=seed.read_bytes();r['url']=f'http://127.0.0.1:{world.http_port}/rules/{tag}.srs';r['update_interval']='1s'
+    world.rule_bytes[tag+'.srs']=seed.read_bytes();r['url']=f'http://rules.fixture.invalid:{world.http_port}/rules/{tag}.srs';r['update_interval']='1s'
     if seeds:r['initial_path']=str(seed)
    else:r.clear();r.update(type='inline',tag=tag,rules=rules)
   self.path=tmp/('runtime-'+name);self.path.write_text(json.dumps(c));self.logpath=tmp/('runtime-'+name+'.log')
@@ -195,6 +195,7 @@ class RuntimeTests(unittest.TestCase):
    with self.subTest(template=name):
     c=self.core(name);self.w.available=False
     self.assertEqual(c.dns('healthy.qq.com'),(0,'127.0.0.1'));self.assertEqual(self.count('backup','healthy.qq.com'),0)
+    self.assertEqual(c.dns('ipv6.qq.com',28),(0,'::1') if name.startswith('config_vps_') else (0,None))
     self.w.failure['primary']='servfail';self.assertEqual(c.dns('fallback.qq.com'),(0,'127.0.0.1'))
     self.assertGreater(self.count('backup','fallback.qq.com'),0)
     self.assertIn('direct-ok',c.http('http-fallback.qq.com'))
@@ -214,6 +215,8 @@ class RuntimeTests(unittest.TestCase):
     for domain in ['github.com','copilot.microsoft.com']:
      self.assertEqual(c.dns(domain),(0,'8.8.8.8'));self.assertGreater(self.count('proxy-backup',domain),0);self.assertEqual(self.count('primary',domain),0)
      self.assertIn('proxy-ok',c.http(domain))
+    if name.startswith('config_vps_'):
+     c.mode('Global');self.assertEqual(c.dns('global.qq.com'),(0,'8.8.8.8'));self.assertGreater(self.count('proxy-backup','global.qq.com'),0);c.mode('Rule')
     self.w.available=False;self.w.failure.clear();self.assertIn('direct-ok',c.http('outage.qq.com'));c.stop();self.w.available=True
  def test_fakeip_is_resolved_before_direct_fallback(self):
   c=self.core('config_tun.json');self.w.available=False;self.w.unknown_ip='8.8.8.8'
@@ -231,7 +234,7 @@ class RuntimeTests(unittest.TestCase):
     c=self.core(name,remote=True,seeds=True,cache=True);self.assertIn('direct-ok',c.http('seed.qq.com'));time.sleep(1.3)
     self.assertIsNone(c.p.poll());self.assertIn('fetch rule-set',c.logpath.read_text());c.stop()
     # Fetch remote rules successfully to populate the actual persistent cache.
-    self.w.available=True;c=self.core(name,remote=True,cache=True);time.sleep(.2);c.stop()
+    self.w.available=True;c=self.core(name,remote=True,cache=True);time.sleep(.2);self.assertEqual(self.count('primary','rules.fixture.invalid'),0);c.stop()
     # With cache, a failed proxy/update must not discard rules or stop direct traffic.
     self.w.available=False;c=self.core(name,remote=True,cache=True);time.sleep(1.3)
     self.assertIsNone(c.p.poll());self.assertIn('direct-ok',c.http('cached.qq.com'));c.stop();self.w.available=True

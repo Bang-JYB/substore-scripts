@@ -35,3 +35,8 @@ jobs:
       - name: DNS, detour outage, FakeIP and remote rule cache integration
         if: runner.os == 'Linux'
         run: python tests/runtime.py
+      - name: Decode and validate actual upstream rule seeds
+        if: runner.os == 'Linux'
+        run: |
+          python scripts/prepare-rule-seeds.py --config config_tun.json --output .test-output/real-seeds --core "$SING_BOX"
+          python tests/upstream-rules.py --seeds .test-output/real-seeds --core "$SING_BOX"

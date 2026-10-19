@@ -46,3 +46,23 @@ test('standalone keeps alias chains and rejects cycles/duplicate names',async()=
  const c=await generate('config_vps_notun.json',[],[node('a'),node('alias'),node('b','192.0.2.3',{detour:'alias'})],{},scriptRoot);
  assert.equal(c.outbounds.find(x=>x.tag==='b').detour,'a');
 });
+test('dependencies use renamed nodes, never a reserved policy group',async()=>{
+ const c=await generate('config_pc.json',[node('VPS'),node('链','192.0.2.3',{detour:'VPS'}),v],[v],{},scriptRoot);
+ const target=c.outbounds.find(x=>x.tag===c.outbounds.find(x=>x.tag==='链').detour);
+ assert.equal(target.type,'socks');assert.equal(target.server,'192.0.2.1');
+});
+test('filtered IPv6 dependency cannot silently become a policy group',async()=>{
+ await assert.rejects(generate('config_pc.json',[node('v6','2001:db8::1'),node('链','192.0.2.1',{detour:'v6'}),v],[v],{},scriptRoot),/依赖/);
+});
+test('guard oversized output and preserve caller input',async()=>{
+ const nodes=[node('机场','192.0.2.1',{password:'x'.repeat(1024*1024)}),v];
+ const original=JSON.stringify(nodes);
+ await assert.rejects(generate('config_pc.json',nodes,[v],{},scriptRoot),/1 MiB/);
+ assert.equal(JSON.stringify(nodes),original);
+});
+test('standalone validates modes and keeps real IPv6 nodes',async()=>{
+ for(const args of [{mode:'invalid'},{strategy:'ipv6_only'},{name:''}])await assert.rejects(generate('config_vps_standalone.json',[],[v],args,scriptRoot));
+ const c=await generate('config_vps_standalone.json',[],[node('v6','2001:db8::1')],{strategy:'prefer_ipv6'},scriptRoot);
+ assert.equal(c.outbounds.find(x=>x.tag==='v6').server,'2001:db8::1');
+ assert.equal(c.dns.strategy,'prefer_ipv6');
+});
