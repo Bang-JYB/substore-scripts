@@ -1,5 +1,24 @@
 # 验证说明（2026-10-19）
 
+## 2026-10-20 增量验证（基线 ec00943）
+
+- 注入回归先在原脚本复现 4 组失败，再修复；Node 总计 51 项（原 45 项保留）。Python 5 项（原种子 2 项 + 下载器默认版本/错误摘要/双版本独立发布 3 项）。
+- CI 扩展为 Linux/Windows/macOS × 1.14.2/1.14.3 六个任务。两版本官方归档均锁定 SHA256；默认生产/下载版本仍为 1.14.2。每任务运行所有单元与 15 份有效配置 check（含全部 14 类独立服务器代理）；Android/mixed 原例改为“必须拒绝”的回归，不能再让空 inbounds 冒充正常配置。
+- Linux 两版本均运行原 4 组 + 新增 bootstrap 故障组（覆盖六模板、主 DNS 故障时域名节点失败/QQ 备用直连、原地恢复、IP 节点独立于 bootstrap），并执行 14 份真实规则解码/8 项匹配。
+- 本地执行器禁止 netlink，运行级测试显式使用 ALLOW_CORE_RUNTIME_SKIP=1 后跳过，不能记录为通过；CI 不允许跳过，以实际日志为准。
+- TUN 模板只做静态/生成/core check；所有套接字集成将 TUN 替换为 loopback mixed，因此**未验证 Windows 驱动、SFM NetworkExtension 或 SFA VpnService**。设备风险与验收范围详见 AUDIT.md 本轮复审。
+
+检查 1.14.3 时显式设置版本和对应可执行文件；Windows 用 PowerShell 的 `$env:`：
+
+```bash
+SING_BOX_VERSION=1.14.3 python scripts/download-core.py
+SING_BOX_VERSION=1.14.3 SING_BOX=/下载器输出的1.14.3路径/sing-box npm run test:core
+SING_BOX_VERSION=1.14.3 SING_BOX=/下载器输出的1.14.3路径/sing-box python tests/runtime.py
+```
+
+下方 2026-10-19 记录保留为历史基线，当前新增验证以本节与最终提交对应 Actions 为准。
+
+
 ## 已复现的问题
 
 针对基线 main `7a72e9f` 先编写测试：首批脚本测试 15 项中 7 项失败；覆盖重名映射覆盖、去重别名丢失、自环/多节点环漏检、direct 歧义、缺失 server、嵌套 tag 错误去重。DNS/路由策略测试首次执行 12 项失败（六份模板分别暴露 AI 抢先直连、备用 DNS 未接入等）。这些失败不是 sing-box 语法检查可以发现的。

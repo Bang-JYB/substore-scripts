@@ -75,3 +75,40 @@ test('standalone rejects direct ambiguity, non-string detour and multi-node cycl
  ];
  for(const nodes of fixtures)await assert.rejects(generate('config_vps_notun.json',[],nodes,{},scriptRoot),/歧义|依赖|循环/);
 });
+
+// Follow-up regressions: first run against ec00943 before changing the injector.
+test('standalone Android mixed rejects instead of silently deleting the only inbound',async()=>{
+ await assert.rejects(generate('config_vps_android.json',[],[v],{mode:'mixed'},scriptRoot),/mode=mixed.*(?:mixed|桌面|TUN)/);
+});
+test('standalone rejects missing, empty or malformed inbound arrays before reading subscription',async()=>{
+ for(const inbounds of [undefined,null,{},[],[null],[{}]]){
+  const c=await generate('config_vps_android.json',[],[v],{},scriptRoot);
+  c.inbounds=inbounds;
+  await assert.rejects(generate('config_vps_android.json',[],[v],{},scriptRoot,c),/入站|inbounds/);
+ }
+});
+test('standalone desktop mixed preserves exactly the original loopback proxy and management API',async()=>{
+ const tun=await generate('config_vps_standalone.json',[],[v],{},scriptRoot);
+ const mixed=await generate('config_vps_standalone.json',[],[v],{mode:'mixed'},scriptRoot);
+ assert.deepEqual(mixed.inbounds,tun.inbounds.filter(x=>x.type!=='tun'));
+ assert.ok(mixed.inbounds.length>0);assert.equal(mixed.inbounds[0].listen,'127.0.0.1');assert.equal(mixed.inbounds[0].listen_port,7890);
+ assert.deepEqual(mixed.experimental,tun.experimental);
+ const noTun=await generate('config_vps_notun.json',[],[v],{mode:'mixed'},scriptRoot);
+ assert.deepEqual(noTun.inbounds,mixed.inbounds);
+});
+test('standalone filters unsupported, removed and non-proxy outbound objects with server fields',async()=>{
+ const unsupported=['made-up-protocol','shadowsocksr','wireguard','tailscale','tor','selector','urltest','direct','block','dns',undefined];
+ const c=await generate('config_vps_notun.json',[],[v,...unsupported.map(type=>({...node('unsupported-'+type),type}))],{},scriptRoot);
+ assert.deepEqual(c.outbounds.filter(x=>x.server).map(x=>x.tag),['自建']);
+ await assert.rejects(generate('config_vps_notun.json',[],[node('bad','192.0.2.1',{type:'wireguard'})],{},scriptRoot),/没有.*代理节点/);
+});
+test('standalone refuses dependencies on filtered protocols and malformed supported nodes',async()=>{
+ await assert.rejects(generate('config_vps_notun.json',[],[node('removed','192.0.2.3',{type:'wireguard'}),node('chain','192.0.2.2',{detour:'removed'})],{},scriptRoot),/依赖/);
+ for(const server of [undefined,'',42])await assert.rejects(generate('config_vps_notun.json',[],[v,node('broken',server,{server})],{},scriptRoot),/server|服务器/);
+});
+test('standalone preserves the 1.14.2 server-proxy allowlist and all protocol fields',async()=>{
+ const types=['shadowsocks','vmess','vless','trojan','hysteria','hysteria2','tuic','anytls','naive','ssh','shadowtls','http','socks','snell'];
+ const nodes=types.map(type=>({...node(type),type}));
+ const c=await generate('config_vps_notun.json',[],nodes,{},scriptRoot);
+ assert.deepEqual(c.outbounds.filter(x=>x.server).map(x=>x.type),types);
+});
