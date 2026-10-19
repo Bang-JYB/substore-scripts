@@ -1,4 +1,4 @@
-name: Validate sing-box 1.14.2
+name: Validate sing-box (1.14.2 baseline, 1.14.3 compatibility)
 on:
   push:
   pull_request:
@@ -14,6 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-14]
+        core: ['1.14.2', '1.14.3']
+    env:
+      SING_BOX_VERSION: ${{ matrix.core }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:

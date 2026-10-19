@@ -10,8 +10,12 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 BIN=os.environ.get('SING_BOX')
 
-def free_port():
- with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
+def free_ports(count):
+ # Hold all sockets until the pair is allocated; sequential close/rebind may reuse a port.
+ with contextlib.ExitStack() as stack:
+  sockets=[stack.enter_context(socket.socket()) for _ in range(count)]
+  for s in sockets:s.bind(('127.0.0.1',0))
+  return tuple(s.getsockname()[1] for s in sockets)
 
 def recv_exact(s,n):
  data=b''
@@ -89,7 +93,7 @@ class World:
   answer=b''
   if not failure and qt in [1,28]:
    if role in ['proxy','proxy-backup']:ip='8.8.8.8' if qt==1 else '2001:4860:4860::8888'
-   elif name.endswith(('.qq.com','.lan')) or name in ['office.com','apple.com','baidu.com']:ip='127.0.0.1' if qt==1 else '::1'
+   elif name=='node.bootstrap.invalid' or name.endswith(('.qq.com','.lan')) or name in ['office.com','apple.com','baidu.com']:ip='127.0.0.1' if qt==1 else '::1'
    else:ip=self.unknown_ip if qt==1 else '2400:3200::1'
    packed=ipaddress.ip_address(ip).packed
    answer=b'\xc0\x0c'+struct.pack('!HHIH',qt,1,30,len(packed))+packed
@@ -111,8 +115,8 @@ FIXTURES={
 }
 
 class Core:
- def __init__(self,world,name,tmp,remote=False,seeds=False,cache=False):
-  self.w=world;self.name=name;self.tmp=tmp;self.port=free_port();self.api_port=free_port()
+ def __init__(self,world,name,tmp,remote=False,seeds=False,cache=False,node_domain=False):
+  self.w=world;self.name=name;self.tmp=tmp;self.port,self.api_port=free_ports(2)
   c=json.loads((ROOT/'.test-output/generated'/name).read_text());self.config=c
   c['inbounds']=[{'type':'mixed','tag':'mixed-in','listen':'127.0.0.1','listen_port':self.port}]
   c['route']['auto_detect_interface']=False
@@ -120,7 +124,7 @@ class Core:
   c['experimental']['cache_file']={'enabled':cache,'path':str(tmp/(name+'.db')),'store_dns':True,'store_fakeip':not name.startswith('config_vps_')}
   c['experimental']['clash_api']={'external_controller':f'127.0.0.1:{self.api_port}','default_mode':'Rule'}
   for o in c['outbounds']:
-   if 'server' in o:o.update(type='socks',server='127.0.0.1',server_port=world.proxy_port,version='5')
+   if 'server' in o:o.update(type='socks',server='node.bootstrap.invalid' if node_domain else '127.0.0.1',server_port=world.proxy_port,version='5')
   for s in c['dns']['servers']:
    role={'ali':'primary','vps-dns':'primary','tx':'backup','local':'local','google':'proxy','proxy-dns':'proxy','proxy-backup':'proxy-backup'}.get(s['tag'])
    if role:
@@ -224,6 +228,29 @@ class RuntimeTests(unittest.TestCase):
   self.w.unknown_ip='127.0.0.1'
   self.assertIn('direct-ok',c.http(fake))
   self.assertNotIn('missing fakeip record',c.logpath.read_text())
+ def test_explicit_node_bootstrap_failure_is_isolated_and_recovers(self):
+  for name in sorted(p.name for p in (ROOT/'.test-output/generated').glob('*.json')):
+   with self.subTest(template=name):
+    self.w.calls.clear();self.w.nodes.clear();self.w.failure['primary']='servfail'
+    c=self.core(name,node_domain=True)
+    # Primary failure blocks domain-based nodes even though application DNS has a backup.
+    try:response=c.http('github.com')
+    except OSError:response=''
+    self.assertNotIn('proxy-ok',response)
+    self.assertGreater(self.count('primary','node.bootstrap.invalid'),0)
+    self.assertEqual(self.count('backup','node.bootstrap.invalid'),0)
+    self.assertEqual(self.count('proxy','node.bootstrap.invalid'),0)
+    self.assertEqual(self.count('proxy-backup','node.bootstrap.invalid'),0)
+    self.assertFalse(self.w.nodes)
+    self.assertIn('direct-ok',c.http('bootstrap-outage.qq.com'))
+    self.assertGreater(self.count('backup','bootstrap-outage.qq.com'),0)
+    # Recovery is in-process; no DNS loop, restart or persistent cache deletion.
+    self.w.failure.clear();self.assertIn('proxy-ok',c.http('github.com'));c.stop()
+    # An IP-literal node does not need this bootstrap resolver.
+    self.w.calls.clear();self.w.failure['primary']='servfail'
+    c=self.core(name);self.assertIn('proxy-ok',c.http('github.com'))
+    self.assertEqual(self.count('primary','node.bootstrap.invalid'),0);c.stop();self.w.failure.clear()
+
  def test_rule_seed_warm_cache_and_failed_updates(self):
   for name in ['config_tun.json','config_vps_standalone.json']:
    with self.subTest(template=name):

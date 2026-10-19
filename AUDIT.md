@@ -1,5 +1,45 @@
 # sing-box 1.14.2 审查与整改记录（2026-10-19）
 
+## 2026-10-20 小范围复审（基线 ec00943）
+
+本轮保持生产目标 **1.14.2**。六份 JSON、inject-nodes.js、八组/分池、IPv4/IPv6、7890/9090、GitHub/QQ/AI、DNS 主备均未更改。不调整 MTU、栈或系统路由。
+
+| 已证明的问题 | 修改及回归 |
+| --- | --- |
+| config_vps_android + mode=mixed 得到空 inbounds；核心 check 不会拒绝空入站 | 独立脚本在读取订阅前检查入站结构，mixed 过滤会删空时明确拒绝，指导改用桌面模板/默认 tun；桌面 mixed 与 notun 的 7890/管理接口保持原样 |
+| 独立脚本接收任何带 server 的对象，可注入未知协议或已移除的 WireGuard/SSR 出站 | 根据官方 v1.14.2 include/registry.go、quic.go 的服务器代理类型设 14 类白名单（含原先可用的 Snell）；未知/非服务器对象不注入，依赖被过滤则拒绝；支持类型缺少 server 明确报错 |
+| 原 15 份 core check 把 Android 空入站当作有效配置通过 | 保留该参数组合为必须拒绝的负例，每个有效输出另检查非空；增加含全部 14 类协议的完整配置，共仍为 15 份有效配置 check |
+
+先补六组注入回归，ec00943 上四组失败（22 通过/4 失败），再做上述最小修改，六组全部通过。新增测试不依赖真实订阅或凭据。锁定官方归档 SHA256，同时检查稳定版 [1.14.3](https://github.com/SagerNet/sing-box/releases/tag/v1.14.3)，未把默认下载/生产目标改成 1.14.3。
+
+### Bootstrap DNS：测出限制，保留网络行为
+
+新增运行级故障组遍历六模板：节点 server 使用测试域名、国内主 DNS 返回 SERVFAIL，断言代理 HTTP 无法完成、bootstrap 只查询主 DNS、不查询腾讯或代理 DNS；同期 QQ HTTP 通过腾讯备用直连。恢复主 DNS 后不重启核心即可恢复代理；同样故障下 IP 字面量节点仍可用。其余既有超时、DNS 主备、缓存/FakeIP 故障测试全部保留。
+
+官方 1.14.2 option/outbound.go 的 domain_resolver 对象要求非空 server，common/dialer/dialer.go 将其指定为单 transport，不经过业务 DNS 主备规则。故本轮**保留阿里显式直连 bootstrap**，不移除 resolver，不使用代理 DNS 自解析，不增加自指本地 DNS 监听，不在加载阶段解析/固化订阅域名。安全且跨三平台的备用方案尚未在此架构证明；不能把应用 DNS 主备误认为节点 bootstrap 主备。IP 节点不需要该层域名解析，但不自动改写用户节点或 SNI。
+
+### TUN 剩余风险与验收边界
+
+| 平台 | 静态/核心检查覆盖 | 仍需实际设备验证 |
+| --- | --- | --- |
+| Windows | 原 strict_route、dns_mode=hijack、auto_detect_interface、loopback mixed/API、无 Linux bypass 保持 | strict_route 可能影响多网卡/VirtualBox 等应用；Wi-Fi/有线切换、休眠恢复、防火墙/驱动与 LAN DNS，需实机检查 |
+| macOS SFM | JSON/core check 不代表 NetworkExtension 建立成功；官方 SFM 不实现 strict_route，接口由系统管理 | 系统扩展权限、局域网访问权限、网络切换、睡眠恢复、与其他 VPN/USB 网卡共用；不能据此宣称解决 iMac panic |
+| Android SFA | Android 默认保留 TUN；拒绝删空；不加桌面 mixed 或 Linux 权限字段 | VpnService 覆写、按应用绕过、系统“始终开启 VPN/阻止未使用 VPN 的连接”、厂商后台限制、Wi-Fi/移动切换，需实机检查 |
+
+共同边界：direct 规则仍经运行中的核心；核心/VPN 本身故障不能保证直连持续。组合版仅 IPv4 TUN 地址和 ipv4_only 解析，不能由静态检查推出系统其他 IPv6 流量必被捕获/阻断；VPS 双栈需实际 IPv6 ISP 路径验证。172.19.0.0/30 或 VPS ULA 与现网冲突、mDNS/DHCP/local DNS、MTU/UDP 等也不能由 loopback 集成推断正常；本轮无证据不改地址/MTU/stack，不大范围排除 RFC1918。
+
+固定版本依据：[TUN](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/configuration/inbound/tun.md)、[SFM](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/clients/apple/features.md)、[SFA](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/clients/android/features.md)、[Linux bypass](https://github.com/SagerNet/sing-box/blob/v1.14.2/docs/configuration/route/rule_action.md)。在线官方文档也已交叉核对，避免用 testing 新字段推定 1.14.2 行为。
+
+### 本轮文件与回滚
+
+- 生产代码只改 inject-vps-standalone.js：入站防御、协议白名单/有效 server。
+- tests/helpers.mjs、injection.test.mjs、core-check.mjs、runtime.py：负例、完整协议配置及 bootstrap 故障；另修复 CI 已证明的临时代理/API 端口复用竞争，并在 tests/runtime_fixture_test.py 先复现再回归；原有测试不删减功能。
+- scripts/download-core.py、tests/core_download_test.py、.github/workflows/validate.yml：双版本锁定、版本/摘要负例、3 系统 × 2 版本；测试下载器默认仍为 1.14.2。
+- README_VPS_STANDALONE.md、VALIDATION.md、AUDIT.md：参数边界、测试层次、设备待验收与回滚。
+
+本轮不改正常配置的实际网络路径；新增行为是拒绝原先不可用的入站/节点数据，并过滤不支持的类型。回滚时同时将模板/注入脚本 URL 固定到 `ec00943bb5ef91a5b9f74dfe4350807b673fb46e`，刷新 Sub-Store 缓存并重新生成；Android 不得用 mode=mixed。仓库可 revert 本轮提交/PR，禁止 force-push 重写历史。保留旧的生成配置以便回切。
+
+
 审查基线：main `7a72e9f56637a50cbf89a6c0a32df8cb1e7c7c26`。未使用真实订阅、凭据、私人配置或服务器登录。
 
 ## 先复现，再修改
