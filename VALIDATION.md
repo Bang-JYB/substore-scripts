@@ -8,7 +8,7 @@
 
 | 层次 | 内容 | 能证明/不能证明 |
 | --- | --- | --- |
-| Node.js 原生回归 | 44 项：映射/依赖、八组/分池、地址族、接口、LAN/AI/GitHub/QQ/UDP443、GeoIP 顺序、备用引用、下载目标 DNS、种子参数 | 确认脚本输出与策略约束；策略夹具不是整个 sing-box 路由器的替身 |
+| Node.js 原生回归 | 45 项：映射/依赖、八组/分池、地址族、接口、LAN/AI/GitHub/QQ/UDP443、GeoIP 顺序、备用引用、下载目标 DNS、种子参数 | 确认脚本输出与策略约束；策略夹具不是整个 sing-box 路由器的替身 |
 | Python 单元测试 | 2 项：下载失败/坏规则不得覆盖旧种子；成功发布 manifest | 覆盖种子准备工具的发布边界 |
 | 官方 1.14.2 check | 15 份生成配置，覆盖六模板、IPv6 优先、mixed、种子目录、多种真实协议字段的虚构节点 | 检查完整配置结构、引用与字段；不连接真实节点 |
 | 官方核心真实套接字 | 4 个集成测试组，分别覆盖六模板直连 DNS/节点隔离、两家族代理 DNS/AI、FakeIP 转真实 direct、两家族规则冷启动/种子/缓存/更新失败 | 使用本地 UDP DNS、SOCKS5 和 HTTP；不需要 TUN 权限，不访问真实业务或真实节点 |
@@ -50,3 +50,7 @@ Windows 使用 PowerShell 的 `$env:SING_BOX`，check 可运行；运行级集�
 保留旧配置并使用同一手动节点，在 Rule 模式测试主站/下载、QQ 音乐换歌、Apple/Microsoft、AI、LAN IP/域名。然后临时选择已知不可用的测试节点，确认直连仍可新建连接；再比较 IPv4/IPv6 实际播放路径。记录出站与中断瞬间的日志，不能只凭 outbound connection to 判断成功。
 
 不建议为验证而清空唯一可用的规则缓存、破坏真实节点或修改系统 DNS；离线首次启动请使用隔离目录和虚构节点。客户端真实密钥、私有 Sub-Store 链接不应上传到 Actions 或公开仓库。
+
+## 完整验证记录
+
+[Actions #2](https://github.com/Bang-JYB/substore-scripts/actions/runs/39216224295) 对提交 `eeba1b954366c6e4ffed44abe967ddd760fcb014` 三系统全部通过：每系统 44 项当时单元回归、2 项种子测试和 15 份完整配置检查；Linux 的 4 个套接字集成测试组与 14 份真实规则解码/8 项匹配检查通过。随后仅完善节点 identity 的有效协议夹具、增加 standalone 依赖负例测试及本验证记录；最终提交会再执行相同 Actions。

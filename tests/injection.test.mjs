@@ -25,8 +25,8 @@ test('supported malformed nodes fail with actionable error',async()=>{
  await assert.rejects(generate('config_pc.json',[a,v],[v],{},scriptRoot),/server|服务器/);
 });
 test('stable unique names, top-level identity, independent pools and protocol fields',async()=>{
- const a=node('节点选择','192.0.2.1',{tls:{enabled:true,tag:'nested-a'}});
- const b=node('另外','192.0.2.1',{tls:{enabled:true,tag:'nested-b'}});
+ const a={type:'vless',tag:'节点选择',server:'192.0.2.1',server_port:443,uuid:'11111111-1111-4111-8111-111111111111',transport:{type:'ws',path:'/',headers:{tag:'nested-a'}}};
+ const b={...a,tag:'另外',transport:{type:'ws',path:'/',headers:{tag:'nested-b'}}};
  const c=await generate('config_pc.json',[a,b,v],[v],{},scriptRoot);
  assert.equal(new Set(c.outbounds.map(x=>x.tag)).size,c.outbounds.length);
  assert.equal(c.outbounds.filter(x=>x.server).length,3);
@@ -65,4 +65,13 @@ test('standalone validates modes and keeps real IPv6 nodes',async()=>{
  const c=await generate('config_vps_standalone.json',[],[node('v6','2001:db8::1')],{strategy:'prefer_ipv6'},scriptRoot);
  assert.equal(c.outbounds.find(x=>x.tag==='v6').server,'2001:db8::1');
  assert.equal(c.dns.strategy,'prefer_ipv6');
+});
+
+test('standalone rejects direct ambiguity, non-string detour and multi-node cycles',async()=>{
+ const fixtures=[
+  [node('direct'),node('链','192.0.2.3',{detour:'direct'})],
+  [node('链','192.0.2.3',{detour:42})],
+  [node('a','192.0.2.1',{detour:'b'}),node('b','192.0.2.2',{detour:'a'})]
+ ];
+ for(const nodes of fixtures)await assert.rejects(generate('config_vps_notun.json',[],nodes,{},scriptRoot),/歧义|依赖|循环/);
 });
