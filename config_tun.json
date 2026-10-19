@@ -46,6 +46,12 @@
             "120.53.53.53"
           ]
         }
+      },
+      {
+        "type": "https",
+        "tag": "proxy-backup",
+        "server": "1.1.1.1",
+        "detour": "节点选择"
       }
     ],
     "rules": [
@@ -62,50 +68,159 @@
         "action": "reject"
       },
       {
-        "clash_mode": "Direct",
-        "server": "ali"
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "domain_suffix": [
+              "lan",
+              "local",
+              "home.arpa"
+            ]
+          },
+          {
+            "domain_regex": [
+              "^[^.]+$"
+            ]
+          },
+          {
+            "rule_set": "geosite-private"
+          }
+        ],
+        "server": "local"
       },
       {
         "clash_mode": "Global",
         "server": "fakeip"
       },
       {
-        "domain_suffix": [
-          "qq.com",
-          "qqmusic.com",
-          "gtimg.com",
-          "gtimg.cn",
-          "qpic.cn",
-          "qlogo.cn"
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "clash_mode": "Direct",
+            "invert": true
+          },
+          {
+            "rule_set": [
+              "geosite-github",
+              "geosite-ai"
+            ]
+          }
         ],
-        "server": "ali"
+        "action": "evaluate",
+        "server": "google",
+        "tag": "proxy-primary",
+        "timeout": "3s"
       },
       {
-        "rule_set": "geosite-github",
-        "server": "google"
+        "match_response": "proxy-primary",
+        "response_rcode": "NOERROR",
+        "action": "respond"
       },
       {
-        "rule_set": [
-          "geosite-apple",
-          "geosite-microsoft"
-        ],
-        "server": "ali"
-      },
-      {
-        "rule_set": [
-          "geosite-cn",
-          "geosite-private",
-          "geosite-apple-cn",
-          "geosite-microsoft-cn"
-        ],
-        "server": "ali"
+        "match_response": "proxy-primary",
+        "response_rcode": "NXDOMAIN",
+        "action": "respond"
       },
       {
         "type": "logical",
         "mode": "and",
         "rules": [
           {
-            "query_type": "A"
+            "clash_mode": "Direct",
+            "invert": true
+          },
+          {
+            "rule_set": [
+              "geosite-github",
+              "geosite-ai"
+            ]
+          }
+        ],
+        "server": "proxy-backup",
+        "timeout": "3s"
+      },
+      {
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "clash_mode": "Direct"
+          },
+          {
+            "domain_suffix": [
+              "qq.com",
+              "qqmusic.com",
+              "gtimg.com",
+              "gtimg.cn",
+              "qpic.cn",
+              "qlogo.cn"
+            ]
+          },
+          {
+            "rule_set": [
+              "geosite-apple",
+              "geosite-microsoft",
+              "geosite-cn",
+              "geosite-apple-cn",
+              "geosite-microsoft-cn"
+            ]
+          }
+        ],
+        "action": "evaluate",
+        "server": "ali",
+        "tag": "direct-primary",
+        "timeout": "2s"
+      },
+      {
+        "match_response": "direct-primary",
+        "response_rcode": "NOERROR",
+        "action": "respond"
+      },
+      {
+        "match_response": "direct-primary",
+        "response_rcode": "NXDOMAIN",
+        "action": "respond"
+      },
+      {
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "clash_mode": "Direct"
+          },
+          {
+            "domain_suffix": [
+              "qq.com",
+              "qqmusic.com",
+              "gtimg.com",
+              "gtimg.cn",
+              "qpic.cn",
+              "qlogo.cn"
+            ]
+          },
+          {
+            "rule_set": [
+              "geosite-apple",
+              "geosite-microsoft",
+              "geosite-cn",
+              "geosite-apple-cn",
+              "geosite-microsoft-cn"
+            ]
+          }
+        ],
+        "server": "tx",
+        "timeout": "2s"
+      },
+      {
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "query_type": [
+              "A"
+            ]
           },
           {
             "rule_set": "geosite-foreign",
@@ -114,17 +229,92 @@
         ],
         "action": "evaluate",
         "server": "ali",
+        "tag": "geo-primary",
         "timeout": "2s"
       },
       {
-        "match_response": true,
+        "match_response": "geo-primary",
         "rule_set": "geoip-cn",
+        "response_rcode": "NOERROR",
+        "action": "respond"
+      },
+      {
+        "match_response": "geo-primary",
+        "ip_is_private": true,
+        "response_rcode": "NOERROR",
+        "action": "respond"
+      },
+      {
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "type": "logical",
+            "mode": "and",
+            "rules": [
+              {
+                "query_type": [
+                  "A"
+                ]
+              },
+              {
+                "rule_set": "geosite-foreign",
+                "invert": true
+              }
+            ]
+          },
+          {
+            "match_response": "geo-primary",
+            "response_rcode": "NOERROR",
+            "invert": true
+          },
+          {
+            "match_response": "geo-primary",
+            "response_rcode": "NXDOMAIN",
+            "invert": true
+          }
+        ],
+        "action": "evaluate",
+        "server": "tx",
+        "tag": "geo-backup",
+        "timeout": "2s"
+      },
+      {
+        "match_response": "geo-backup",
+        "rule_set": "geoip-cn",
+        "response_rcode": "NOERROR",
+        "action": "respond"
+      },
+      {
+        "match_response": "geo-backup",
+        "ip_is_private": true,
+        "response_rcode": "NOERROR",
         "action": "respond"
       },
       {
         "query_type": "A",
         "server": "fakeip",
         "rewrite_ttl": 1
+      },
+      {
+        "action": "evaluate",
+        "server": "google",
+        "tag": "proxy-final",
+        "timeout": "3s"
+      },
+      {
+        "match_response": "proxy-final",
+        "response_rcode": "NOERROR",
+        "action": "respond"
+      },
+      {
+        "match_response": "proxy-final",
+        "response_rcode": "NXDOMAIN",
+        "action": "respond"
+      },
+      {
+        "server": "proxy-backup",
+        "timeout": "3s"
       }
     ],
     "final": "google",
@@ -235,11 +425,7 @@
       "tag": "rules-via-proxy",
       "engine": "go",
       "version": 1,
-      "detour": "节点选择",
-      "domain_resolver": {
-        "server": "ali",
-        "strategy": "ipv4_only"
-      }
+      "detour": "节点选择"
     }
   ],
   "route": {
@@ -260,6 +446,54 @@
         "outbound": "direct"
       },
       {
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "domain_suffix": [
+              "lan",
+              "local",
+              "home.arpa"
+            ]
+          },
+          {
+            "domain_regex": [
+              "^[^.]+$"
+            ]
+          },
+          {
+            "rule_set": "geosite-private"
+          }
+        ],
+        "action": "resolve"
+      },
+      {
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "domain_suffix": [
+              "lan",
+              "local",
+              "home.arpa"
+            ]
+          },
+          {
+            "domain_regex": [
+              "^[^.]+$"
+            ]
+          },
+          {
+            "rule_set": "geosite-private"
+          }
+        ],
+        "outbound": "direct"
+      },
+      {
+        "clash_mode": "Direct",
+        "action": "resolve"
+      },
+      {
         "clash_mode": "Direct",
         "outbound": "🎯 全球直连"
       },
@@ -276,11 +510,61 @@
           "qpic.cn",
           "qlogo.cn"
         ],
+        "action": "resolve"
+      },
+      {
+        "domain_suffix": [
+          "qq.com",
+          "qqmusic.com",
+          "gtimg.com",
+          "gtimg.cn",
+          "qpic.cn",
+          "qlogo.cn"
+        ],
         "outbound": "direct"
+      },
+      {
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "rule_set": "geosite-github"
+          },
+          {
+            "network": "udp",
+            "port": 443
+          }
+        ],
+        "action": "reject"
       },
       {
         "rule_set": "geosite-github",
         "outbound": "节点选择"
+      },
+      {
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "rule_set": "geosite-ai"
+          },
+          {
+            "network": "udp",
+            "port": 443
+          }
+        ],
+        "action": "reject"
+      },
+      {
+        "rule_set": "geosite-ai",
+        "outbound": "AI工具"
+      },
+      {
+        "rule_set": [
+          "geosite-apple",
+          "geosite-microsoft"
+        ],
+        "action": "resolve"
       },
       {
         "rule_set": [
@@ -290,21 +574,34 @@
         "outbound": "direct"
       },
       {
-        "rule_set": "geosite-private",
-        "outbound": "direct"
-      },
-      {
-        "rule_set": "geosite-ai",
-        "outbound": "AI工具"
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "rule_set": [
+              "geosite-google",
+              "geosite-youtube",
+              "geosite-telegram"
+            ]
+          },
+          {
+            "network": "udp",
+            "port": 443
+          }
+        ],
+        "action": "reject"
       },
       {
         "rule_set": [
           "geosite-google",
           "geosite-youtube",
-          "geosite-github",
           "geosite-telegram"
         ],
         "outbound": "节点选择"
+      },
+      {
+        "rule_set": "geosite-onedrive",
+        "action": "resolve"
       },
       {
         "rule_set": "geosite-onedrive",
@@ -314,21 +611,51 @@
         "rule_set": [
           "geosite-apple-cn",
           "geosite-microsoft-cn",
-          "geosite-cn",
-          "geoip-cn"
+          "geosite-cn"
         ],
+        "action": "resolve"
+      },
+      {
+        "rule_set": [
+          "geosite-apple-cn",
+          "geosite-microsoft-cn",
+          "geosite-cn"
+        ],
+        "outbound": "🎯 全球直连"
+      },
+      {
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "rule_set": "geosite-foreign"
+          },
+          {
+            "network": "udp",
+            "port": 443
+          }
+        ],
+        "action": "reject"
+      },
+      {
+        "rule_set": "geosite-foreign",
+        "outbound": "节点选择"
+      },
+      {
+        "action": "resolve"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
+      },
+      {
+        "rule_set": "geoip-cn",
         "outbound": "🎯 全球直连"
       },
       {
         "network": "udp",
         "port": 443,
         "action": "reject"
-      },
-      {
-        "rule_set": [
-          "geosite-foreign"
-        ],
-        "outbound": "节点选择"
       }
     ],
     "rule_set": [
