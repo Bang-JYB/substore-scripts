@@ -82,24 +82,29 @@ for (const raw of source.outbounds) {
 }
 if (!nodes.length) throw new Error('单订阅中没有可转换的服务器代理节点，已停止生成');
 for (const node of nodes) {
-  if (!node.detour || node.detour === 'direct') continue;
+  if (!node.detour) continue;
+  if (typeof node.detour !== 'string') throw new Error('节点链式拨号依赖必须是名称：' + node.tag);
+  if (node.detour === 'direct') {
+    if (originalTags.has('direct')) throw new Error('direct 依赖存在歧义，请重命名来源节点 direct');
+    continue;
+  }
   const target = originalTags.get(node.detour);
   if (!target) throw new Error('链式拨号依赖不存在或不受支持：' + node.tag);
   node.detour = target.tag;
 }
 // 链式拨号必须能到达出口，避免自引用或环形依赖。
 const byTag = new Map(nodes.map(node => [node.tag, node]));
-const checked = new Set(), visiting = new Set();
-function checkChain(tag) {
-  if (checked.has(tag)) return;
-  if (visiting.has(tag)) throw new Error('链式拨号存在循环：' + tag);
-  visiting.add(tag);
-  const target = byTag.get(tag)?.detour;
-  if (target && target !== 'direct') checkChain(target);
-  visiting.delete(tag);
-  checked.add(tag);
+const checked = new Set();
+for (const start of tags) {
+  const visiting = new Set();
+  let tag = start;
+  while (tag && tag !== 'direct' && !checked.has(tag)) {
+    if (visiting.has(tag)) throw new Error('链式拨号存在循环：' + tag);
+    visiting.add(tag);
+    tag = byTag.get(tag)?.detour;
+  }
+  for (const item of visiting) checked.add(item);
 }
-for (const tag of tags) checkChain(tag);
 const selector = clone(config.outbounds.find(node => node.tag === 'VPS选择'));
 const auto = clone(config.outbounds.find(node => node.tag === 'VPS自动'));
 const direct = clone(config.outbounds.find(node => node.tag === 'direct'));
@@ -111,6 +116,8 @@ config.outbounds = [selector, auto, direct, ...nodes];
 config.dns.strategy = strategy;
 config.route.default_domain_resolver = {server: 'vps-dns', strategy};
 if (mode === 'mixed') config.inbounds = config.inbounds.filter(inbound => inbound.type !== 'tun');
+const rulesDir=String(args.rules_dir??'').trim().replace(/\\/g,'/').replace(/\/+$/,'');
+if(rulesDir)for(const rule of config.route?.rule_set??[])if(rule.type==='remote')rule.initial_path=rulesDir+'/{tag}.srs';
 const output = JSON.stringify(config);
 if (new TextEncoder().encode(output).length > 1024 * 1024) throw new Error('生成配置超过 1 MiB，请减少订阅节点');
 $content = output;
