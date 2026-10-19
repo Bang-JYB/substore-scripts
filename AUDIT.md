@@ -33,7 +33,7 @@
 ### 本轮文件与回滚
 
 - 生产代码只改 inject-vps-standalone.js：入站防御、协议白名单/有效 server。
-- tests/helpers.mjs、injection.test.mjs、core-check.mjs、runtime.py：负例、完整协议配置及 bootstrap 故障；原有测试不删减功能。
+- tests/helpers.mjs、injection.test.mjs、core-check.mjs、runtime.py：负例、完整协议配置及 bootstrap 故障；另修复 CI 已证明的临时代理/API 端口复用竞争，并在 tests/runtime_fixture_test.py 先复现再回归；原有测试不删减功能。
 - scripts/download-core.py、tests/core_download_test.py、.github/workflows/validate.yml：双版本锁定、版本/摘要负例、3 系统 × 2 版本；测试下载器默认仍为 1.14.2。
 - README_VPS_STANDALONE.md、VALIDATION.md、AUDIT.md：参数边界、测试层次、设备待验收与回滚。
 

@@ -10,8 +10,12 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 BIN=os.environ.get('SING_BOX')
 
-def free_port():
- with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
+def free_ports(count):
+ # Hold all sockets until the pair is allocated; sequential close/rebind may reuse a port.
+ with contextlib.ExitStack() as stack:
+  sockets=[stack.enter_context(socket.socket()) for _ in range(count)]
+  for s in sockets:s.bind(('127.0.0.1',0))
+  return tuple(s.getsockname()[1] for s in sockets)
 
 def recv_exact(s,n):
  data=b''
@@ -112,7 +116,7 @@ FIXTURES={
 
 class Core:
  def __init__(self,world,name,tmp,remote=False,seeds=False,cache=False,node_domain=False):
-  self.w=world;self.name=name;self.tmp=tmp;self.port=free_port();self.api_port=free_port()
+  self.w=world;self.name=name;self.tmp=tmp;self.port,self.api_port=free_ports(2)
   c=json.loads((ROOT/'.test-output/generated'/name).read_text());self.config=c
   c['inbounds']=[{'type':'mixed','tag':'mixed-in','listen':'127.0.0.1','listen_port':self.port}]
   c['route']['auto_detect_interface']=False
