@@ -16,6 +16,8 @@ SING_BOX_VERSION=1.14.3 SING_BOX=/下载器输出的1.14.3路径/sing-box npm ru
 SING_BOX_VERSION=1.14.3 SING_BOX=/下载器输出的1.14.3路径/sing-box python tests/runtime.py
 ```
 
+本轮 [完整 CI](https://github.com/Bang-JYB/substore-scripts/actions/runs/39340089443) 对实现提交 `466500bae5061057f03484de31981701c5820cf4` 的六个任务全部通过：每任务 51 项 Node、5 项 Python 与 15 份官方核心配置检查（累计 90 次 core check）；两个 Linux 任务均实际执行 5 组套接字故障集成、14 份真实规则解码与 8 项匹配，无运行级跳过。后续若只更新本验证记录，不把它描述为新增实现测试。
+
 下方 2026-10-19 记录保留为历史基线，当前新增验证以本节与最终提交对应 Actions 为准。
 
 
