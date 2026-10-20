@@ -18,6 +18,7 @@ const original=f=>execFileSync('git',['show','7a72e9f:'+f],{cwd:root});
 // Independent category fixtures, including the actual upstream AI/Microsoft overlap.
 const sets={
  'github.com':['geosite-github','geosite-microsoft','geosite-foreign'],
+ 'api.github.com':['geosite-github','geosite-microsoft','geosite-foreign'],
  'copilot-proxy.githubusercontent.com':['geosite-github','geosite-ai','geosite-foreign'],
  'copilot.microsoft.com':['geosite-ai','geosite-microsoft','geosite-foreign'],
  'gemini.google.com':['geosite-ai','geosite-google','geosite-foreign'],
@@ -63,11 +64,14 @@ for(const file of files){
  test('only the declared rule edits are permitted: '+file,()=>{
   assert.equal(c.dns.rules.length,before.dns.rules.length-1);
   assert.equal(c.route.rules.length,before.route.rules.length-1);
+  const oldDNS=structuredClone(before.dns);
+  oldDNS.rules=oldDNS.rules.filter(r=>!list(r.domain_suffix).some(x=>qq.includes(x)));
+  assert.deepEqual(c.dns,oldDNS,'DNS must equal 7a72e9f minus only the QQ override');
   const scrub=config=>{
    const copy=structuredClone(config);
    for(const area of ['dns','route'])copy[area].rules=copy[area].rules.filter(r=>
     !list(r.domain_suffix).some(x=>qq.includes(x))&&
-    (solo||!(list(r.rule_set).includes('geosite-ai')||area==='dns'&&list(r.rule_set).includes('geosite-github'))));
+    (solo||area!=='route'||!list(r.rule_set).includes('geosite-ai')));
    return copy;
   };
   assert.deepEqual(scrub(c),scrub(before),'unrelated DNS/route/transport field changed');
@@ -87,12 +91,18 @@ for(const file of files){
   assert.equal(route(c,'foreign.example',{network:'udp',port:8443,ip_version:6}),'VPS选择');
  });
  else{
-  test('AI and GitHub precede Microsoft in route and DNS: '+file,()=>{
+  test('AI route precedes GitHub/Microsoft; DNS retains historical behavior: '+file,()=>{
    for(const host of ['copilot.microsoft.com','gemini.google.com']){
-    assert.equal(route(c,host),'AI工具');assert.equal(dns(c,host),'google');
+    assert.equal(route(c,host),'AI工具');
    }
+   assert.equal(dns(c,'copilot.microsoft.com'),'ali');
+   assert.equal(dns(c,'gemini.google.com'),'fakeip');
    assert.equal(dns(c,'github.com'),'google');
-   assert.equal(route(c,'copilot-proxy.githubusercontent.com'),'节点选择');
+   for(const host of ['github.com','api.github.com']){
+    assert.equal(route(c,host),'节点选择');assert.equal(dns(c,host),'google');
+   }
+   assert.equal(route(c,'copilot-proxy.githubusercontent.com'),'AI工具');
+   assert.equal(dns(c,'copilot-proxy.githubusercontent.com'),'google');
    assert.equal(route(c,'copilot.microsoft.com',{clash_mode:'Direct'}),'🎯 全球直连');
    assert.equal(route(c,'copilot.microsoft.com',{clash_mode:'Global'}),'GLOBAL');
    assert.equal(dns(c,'copilot.microsoft.com',{clash_mode:'Direct'}),'ali');
@@ -103,8 +113,8 @@ for(const file of files){
    const guard=r=>r.network==='udp'&&r.port===443&&r.action==='reject';
    assert.deepEqual(c.route.rules.filter(guard),before.route.rules.filter(guard));
    assert.equal(c.route.rules.filter(guard).length,1);
-   for(const host of ['github.com','google.com','youtube.com','telegram.org','copilot.microsoft.com']){
-    const target=host==='copilot.microsoft.com'?'AI工具':'节点选择';
+   for(const host of ['github.com','api.github.com','google.com','youtube.com','telegram.org','copilot.microsoft.com','copilot-proxy.githubusercontent.com']){
+    const target=host.startsWith('copilot')?'AI工具':'节点选择';
     assert.equal(route(c,host,{network:'udp'}),target,'early route intentionally bypasses late guard');
     assert.equal(route(c,host),target);
     assert.equal(route(c,host,{network:'udp',port:8443}),target);

@@ -14,8 +14,10 @@
 ### 实际整改及证据
 
 - 六份 JSON 各删除一条 QQ/Tencent 专用 DNS 和一条强制直连路由，QQ 音乐使用普通分类，不强制走代理。
-- 上游 [Microsoft](https://github.com/MetaCubeX/meta-rules-dat/blob/sing/geo/geosite/microsoft.json) 包含 `domain_suffix: microsoft.com`，[AI](https://github.com/MetaCubeX/meta-rules-dat/blob/sing/geo/geosite/category-ai-!cn.json) 包含 `domain_suffix: copilot.microsoft.com`。旧版静态复现 Copilot 先命中 Microsoft direct，DNS 也先命中 ali；GitHub 已在 Microsoft 之前，无需再改。
-- 组合版仅将现有 AI 路由移到 Apple/Microsoft 之前；现有 GitHub DNS 规则的 rule_set 扩为 GitHub+AI，仍复用 google 解析器。不添加域名特例、DNS 服务器或查询回退。AI 业务仍默认 VPS；其 DNS 复用原 google（经节点选择），并不声称 DNS 也固定同一 VPS 节点。
+- 上游 [Microsoft](https://github.com/MetaCubeX/meta-rules-dat/blob/sing/geo/geosite/microsoft.json) 包含 `domain_suffix: microsoft.com`，[AI](https://github.com/MetaCubeX/meta-rules-dat/blob/sing/geo/geosite/category-ai-!cn.json) 包含 `domain_suffix: copilot.microsoft.com`。旧版静态复现 Copilot 先命中 Microsoft direct。PR 首稿另有 AI/GitHub 重叠问题：`copilot-proxy.githubusercontent.com` 先进入节点选择，本次复现后修正。
+- 组合版只移动现有 AI 路由，顺序为 **AI工具 → GitHub 节点选择 → Apple/Microsoft 直连**。AI 分类重叠时优先 AI工具，默认 VPS；普通 github.com、api.github.com 仍走节点选择。不添加逐域名生产规则。
+- 撤回 PR 首稿的 AI DNS 扩展；六份 DNS 的完整对象严格等于 7a72e9f，仅删除 QQ 专用规则。google 解析器仍经节点选择，既有 GitHub DNS 不变。旧 Copilot/Microsoft 分类仍走 ali，Gemini 等未提前命中的 A 查询仍可用原 FakeIP；不将这些原行为描述为全部 AI DNS 已走 VPS。
+- DNS 扩展没有业务路由优先级修复所必需的依据：它把部分原 ali/FakeIP 的 AI 首次 A 查询改为经节点选择的代理 DoH，引入该阶段的代理等待和节点池依赖；不能据此断言所有请求总耗时增加。没有实机延迟证据，本轮按要求保留旧 DNS，不新增服务器、重试或回退。原 GitHub/AI 重叠域名仍命中既有 GitHub DNS，经节点选择；这项原依赖并未消除。
 - VPS 独立版只删除 QQ 覆盖，不加入 AI 规则集或 UDP 阻断；Microsoft 分类内的 AI 服务仍按独立版原行为。本轮 AI 优先级整改范围是组合版。
 - 两份注入脚本逐字节不变；所有其他 DNS、FakeIP、缓存、resolve、规则下载、策略组、入站、IPv4/双栈、MTU、测速和节点字段保持基线。没有重新搭建旧复杂整改架构或六任务 CI。
 
@@ -26,7 +28,7 @@
 | Rule 模式请求 | 当前结果 |
 | --- | --- |
 | GitHub / Google / YouTube / Telegram UDP443 | 提前代理，原单条拒绝不覆盖 |
-| AI UDP443 | 提前走 AI工具；Copilot 本轮由误直连改为 AI工具 |
+| AI UDP443（包括与 GitHub 重叠的 Copilot） | 提前走 AI工具，默认 VPS；原末尾拒绝仍不覆盖 |
 | 到达末尾的普通 foreign / 未分类公网 UDP443 | 拒绝 |
 | 国内、Apple/Microsoft、LAN | 原直连；私网 IP 仍更早直连 |
 | 相同目标 TCP443、其他 UDP | 原出站分类；仅 Copilot 等 AI 重叠目标修正为 AI工具 |
@@ -46,7 +48,9 @@
 node checks/minimal-rules.mjs --core /绝对路径/sing-box-1.14.2
 ```
 
-先在未改的六份 JSON 上运行，QQ 残留及 Copilot 优先级断言失败。最小修改后 **23 项检查通过、0 跳过**；其中核心校验注入虚构 HY2/TUIC/机场节点，六份完整配置全部 `sing-box check` 成功。静态夹具核对普通国内/GeoIP/LAN、GitHub/AI、UDP 边界、八组、香港保留、英国/台湾/信息过滤、机场/VPS 独立池、双栈及原字段不变。不给 --core 时核心项会明确跳过，不能计为核心通过。
+先在未改的六份 JSON 上运行，QQ 残留及 Copilot 优先级断言失败；本次也在 PR 首稿配置上复现了 GitHub/AI 重叠目标选错组。更新后 **23 项检查通过、0 跳过**；其中核心校验注入虚构 HY2/TUIC/机场节点，六份完整配置全部 `sing-box check` 成功。完整实际命令、核心版本/哈希、六配置与检查脚本的输入哈希及 TAP 输出保存于 [checks/results/minimal-rules-20261020.log](checks/results/minimal-rules-20261020.log)，不是仅依据本文声明。没有 GitHub CI 记录，不宣称 CI 通过。
+
+静态夹具核对普通国内/GeoIP/LAN、AI 优先 GitHub、普通 GitHub、UDP 边界、八组、香港保留、英国/台湾/信息过滤、机场/VPS 独立池、双栈及原字段不变；新增断言保证 DNS 除 QQ 删除外完整等于历史版本。不给 --core 时核心项会明确跳过，不能计为核心通过。
 
 已确认的独立旧限制：组合脚本若有两个不同服务器使用同一源 tag `dup`，随后节点 detour 引用 `dup`，会静默指向后出现的节点。用 TEST-NET 虚构节点已复现；本 PR 不改注入器。若实际订阅涉及该情况，另开最小修复，仅拒绝有引用的同名歧义，不重构整个节点转换流程。常规唯一名称夹具分池正常，不代表所有真实 Sub-Store 输出都已验证。
 
