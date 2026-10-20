@@ -53,7 +53,8 @@ for(const raw of combined.outbounds){
  // Sub-Store ShadowTLS wrappers omit server; their physical hop is checked below.
  const wrapped=['shadowsocks','snell'].includes(raw.type)&&raw.server===undefined&&typeof raw.detour==='string'&&raw.detour.trim();
  if((typeof raw.server!=='string'||!raw.server.trim())&&!wrapped)throw new Error('节点缺少 server 服务器地址：'+String(raw.tag||''));
- const original=String(raw.tag??'').trim(),rawID=identity(raw);
+ // Source names are exact reference keys; never trim a detour into another node.
+ const original=String(raw.tag??''),rawID=identity(raw);
  if(original&&originalIDs.has(original)&&originalIDs.get(original)!==rawID)throw new Error('订阅中节点重名且配置不同，请先重命名：'+original);
  if(original)originalIDs.set(original,rawID);
  if(ignored.test(String(raw.tag||''))){droppedInfo++;continue;}
@@ -92,8 +93,12 @@ for(const node of nodes){
  }
  for(const item of visiting)checked.add(item);
 }
-// Referenced ShadowTLS hops remain available for detour, never as standalone proxies.
-const helpers=new Set(nodes.filter(n=>byTag.get(n.detour)?.type==='shadowtls').map(n=>n.detour));
+// Preserve the source graph's helper role even when its parent was filtered.
+const helpers=new Set();
+for(const raw of combined.outbounds)if(raw&&supported.has(raw.type)){
+ const target=tagMap.get(raw.detour);
+ if(byTag.get(target)?.type==='shadowtls')helpers.add(target);
+}
 const selectableAirport=airport.filter(tag=>!helpers.has(tag)),selectableVPS=vps.filter(tag=>!helpers.has(tag));
 if(!selectableAirport.length||!selectableVPS.length)throw new Error('组合订阅缺少可选择的机场或 VPS 代理节点，ShadowTLS 辅助出站不能独立选用');
 const values={

@@ -65,5 +65,22 @@ try{
  const renamedFile=path.join(dir,`${n++}.json`);fs.writeFileSync(renamedFile,JSON.stringify(renamed.config));
  execFileSync(binary,['check','-c',renamedFile],{stdio:'pipe'});
  console.log('PASS official Sub-Store collection rename with ShadowTLS dependencies');
+ // New whitespace and IPv6 helper boundaries; the original 23 checks stay intact.
+ const spaced=[node(' first ','192.0.2.40'),node(' middle ','192.0.2.41',{detour:' first '}),node('leaf','192.0.2.42',{detour:' middle '})];
+ for(const file of ['config_tun.json','config_vps_standalone.json']){
+  const config=await generate(file,[node('airport','192.0.2.100'),...spaced],spaced);
+  const dest=path.join(dir,`${n++}.json`);fs.writeFileSync(dest,JSON.stringify(config));
+  execFileSync(binary,['check','-c',dest],{stdio:'pipe'});console.log('PASS exact source-name whitespace chain '+file);
+ }
+ for(const type of ['shadowsocks','snell']){
+  const helper={type:'shadowtls',tag:' IPv6-hop ',server:'2001:db8::3',server_port:443,version:3,password:'fixture-only',tls:{enabled:true,server_name:'example.com'}};
+  const wrapper=type==='shadowsocks'?{type,tag:'wrapped',detour:helper.tag,method:'aes-128-gcm',password:'fixture-only'}:{type,tag:'wrapped',detour:helper.tag,version:4,psk:'fixture-only'};
+  const nodes=[node('healthy','192.0.2.43'),wrapper,helper];
+  await assert.rejects(generate('config_tun.json',[node('airport','192.0.2.100'),...nodes],nodes),/依赖.*过滤/);
+  const config=await generate('config_vps_standalone.json',[],nodes,{strategy:'prefer_ipv6'});
+  assert.ok(!config.outbounds.find(o=>o.tag==='VPS自动').outbounds.includes('IPv6-hop'));
+  const dest=path.join(dir,`${n++}.json`);fs.writeFileSync(dest,JSON.stringify(config));
+  execFileSync(binary,['check','-c',dest],{stdio:'pipe'});console.log('PASS dual-stack IPv6 helper '+type+'; combo rejects broken chain');
+ }
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
 console.log(`${n} complete generated configurations checked with official ${expected}.`);

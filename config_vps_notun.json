@@ -152,12 +152,6 @@
           },
           {
             "domain_suffix": [
-              "qq.com",
-              "qqmusic.com",
-              "gtimg.com",
-              "gtimg.cn",
-              "qpic.cn",
-              "qlogo.cn",
               "cn"
             ]
           },
@@ -193,12 +187,6 @@
           },
           {
             "domain_suffix": [
-              "qq.com",
-              "qqmusic.com",
-              "gtimg.com",
-              "gtimg.cn",
-              "qpic.cn",
-              "qlogo.cn",
               "cn"
             ]
           },
@@ -418,28 +406,6 @@
       {
         "clash_mode": "Global",
         "outbound": "VPS选择"
-      },
-      {
-        "domain_suffix": [
-          "qq.com",
-          "qqmusic.com",
-          "gtimg.com",
-          "gtimg.cn",
-          "qpic.cn",
-          "qlogo.cn"
-        ],
-        "action": "resolve"
-      },
-      {
-        "domain_suffix": [
-          "qq.com",
-          "qqmusic.com",
-          "gtimg.com",
-          "gtimg.cn",
-          "qpic.cn",
-          "qlogo.cn"
-        ],
-        "outbound": "direct"
       },
       {
         "rule_set": "geosite-github",

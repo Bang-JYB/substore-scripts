@@ -38,11 +38,11 @@ for(const f of templates)test('business routing, QUIC, LAN and GeoIP '+f,()=>{
  const c=JSON.parse(fs.readFileSync(path.join(root,f))),v=f.startsWith('config_vps_'),proxy=v?'VPS选择':'节点选择';
  assert.equal(route(c,'github.com'),proxy);
  assert.equal(route(c,'copilot.microsoft.com'),v?'VPS选择':'AI工具');
- for(const d of ['y.qq.com','ws6.stream.qqmusic.qq.com','apple.com','office.com','baidu.com'])assert.ok(['direct','🎯 全球直连'].includes(route(c,d)),d);
+ for(const d of ['apple.com','office.com','baidu.com'])assert.ok(['direct','🎯 全球直连'].includes(route(c,d)),d);
  assert.equal(route(c,'github.com','udp'),v?proxy:'reject');
  assert.equal(route(c,'google.com','udp'),v?proxy:'reject');
  assert.equal(route(c,'copilot.microsoft.com','udp'),v?'VPS选择':'reject');
- assert.equal(route(c,'y.qq.com','udp'),'direct');
+ assert.equal(route(c,'baidu.com','udp'),v?'direct':'🎯 全球直连');
  assert.equal(route(c,'nas.lan','tcp',80,'Global'),'direct');
  assert.equal(route(c,'anything','tcp',80,'Global',{private:true}),'direct');
  const resolve=c.route.rules.findIndex(r=>r.action==='resolve'&&!r.server&&!r.rule_set&&!r.domain_suffix&&!r.type&&!r.clash_mode);
@@ -75,4 +75,21 @@ for(const f of templates)test('address families, DNS persistence and loopback ma
  assert.equal(c.experimental.cache_file.store_dns,true);
  if(c.experimental.clash_api)assert.equal(c.experimental.clash_api.external_controller,'127.0.0.1:9090');
  for(const i of c.inbounds.filter(i=>i.type==='tun')){assert.equal(i.mtu,1400);assert.equal(i.dns_mode,'hijack');assert.ok(!i.auto_redirect);assert.ok(!i.route_exclude_address_set);}
+});
+
+for(const f of templates)test('QQ Music has no dedicated DNS/direct override and follows generic classification '+f,()=>{
+ const c=JSON.parse(fs.readFileSync(path.join(root,f))),v=f.startsWith('config_vps_');
+ // The mock geosite-cn intentionally does not list QQ: unknown traffic must reach normal fallback.
+ for(const d of ['y.qq.com','ws6.stream.qqmusic.qq.com']){
+  assert.equal(route(c,d),c.route.final);
+  assert.equal(route(c,d,'tcp',443,'Rule',{ip:'223.5.5.5'}),v?'direct':'🎯 全球直连');
+ }
+ const forbidden=new Set(['qq.com','qqmusic.com','gtimg.com','gtimg.cn','qpic.cn','qlogo.cn']);
+ const check=value=>{
+  if(Array.isArray(value)){value.forEach(check);return;}
+  if(!value||typeof value!=='object')return;
+  for(const d of value.domain_suffix??[])assert.ok(!forbidden.has(d),'dedicated QQ/Tencent override remains: '+d);
+  Object.values(value).forEach(check);
+ };
+ check(c.dns.rules);check(c.route.rules);
 });
