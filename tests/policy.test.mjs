@@ -77,6 +77,58 @@ for(const f of templates)test('address families, DNS persistence and loopback ma
  for(const i of c.inbounds.filter(i=>i.type==='tun')){assert.equal(i.mtu,1400);assert.equal(i.dns_mode,'hijack');assert.ok(!i.auto_redirect);assert.ok(!i.route_exclude_address_set);}
 });
 
+function assertNoDedicatedQQ(config){
+ const forbidden=['qq.com','qqmusic.com','gtimg.com','gtimg.cn','qpic.cn','qlogo.cn'];
+ const qqHosts=forbidden.flatMap(d=>[d,'y.'+d,'stream.'+d]).concat('ws6.stream.qqmusic.qq.com');
+ const genericHosts=['www.baidu.com','example.com','example.cn','example.net','nas.lan','localhost'];
+ const dedicated=(field,value)=>{
+  assert.equal(typeof value,'string','domain match value must be a string');
+  if(field==='domain'||field==='domain_suffix'){
+   const domain=value.toLowerCase().replace(/^\.+|\.+$/g,'');
+   return forbidden.some(d=>domain===d||domain.endsWith('.'+d));
+  }
+  // Finite probes catch keyword/regex equivalents, not every possible RE2 expression.
+  const regex=field==='domain_regex'?new RegExp(value):null;
+  const matches=regex?d=>regex.test(d):d=>d.includes(value);
+  const mentionsQQ=/\b(qq|qqmusic|gtimg|qpic|qlogo)\b/i.test(value);
+  return qqHosts.some(matches)&&(mentionsQQ||!genericHosts.some(matches));
+ };
+ const check=value=>{
+  if(Array.isArray(value)){value.forEach(check);return;}
+  if(!value||typeof value!=='object')return;
+  for(const field of ['domain_suffix','domain','domain_keyword','domain_regex'])if(value[field]!==undefined){
+   for(const d of list(value[field]))assert.ok(!dedicated(field,d),'dedicated QQ/Tencent override remains: '+field+' '+d);
+  }
+  Object.values(value).forEach(check);
+ };
+ check(config.dns.rules);check(config.route.rules);
+}
+
+test('QQ guard rejects scalar/array domain fields in DNS and nested route rules',()=>{
+ const missed=[];
+ for(const field of ['domain_suffix','domain','domain_keyword','domain_regex']){
+  for(const domain of ['qq.com','qqmusic.com','gtimg.com','gtimg.cn','qpic.cn','qlogo.cn']){
+   const values=field==='domain_regex'?[`(^|\\.)${domain.replaceAll('.','\\.')}$`]:
+    field==='domain_keyword'?[domain,domain.split('.')[0]]:[domain,'stream.'+domain,'.'+domain,domain.toUpperCase()+'.'];
+   for(const value of values)for(const array of [false,true])for(const section of ['dns','route'])for(const nested of [false,true]){
+    const c={dns:{rules:[]},route:{rules:[]}};
+    const rule={[field]:array?['fixture.example',value]:value,...(section==='dns'?{server:'ali'}:{outbound:'direct'})};
+    c[section].rules.push(nested?{type:'logical',mode:'and',rules:[{type:'logical',mode:'or',rules:[rule]}]}:rule);
+    try{assertNoDedicatedQQ(c);missed.push([section,field,value,array,nested]);}
+    catch(error){assert.match(error.message,/dedicated QQ\/Tencent/);}
+   }
+  }
+ }
+ assert.equal(missed.length,0,'guard missed synthetic QQ/Tencent rules: '+JSON.stringify(missed.slice(0,8)));
+});
+test('QQ guard preserves generic classification and unrelated domain matches',()=>{
+ const rules=[{domain_suffix:'cn'},{domain_suffix:['com','lan','notqq.com']},
+  {domain:['www.baidu.com','qq.com.example.net']},{domain_keyword:'example'},
+  {domain_regex:['.*','^[^.]+$','(^|\\.)example\\.net$']},
+  {rule_set:['geosite-cn','geoip-cn']},{outbound:'节点选择',comment:'qq.com'}];
+ assert.doesNotThrow(()=>assertNoDedicatedQQ({dns:{rules},route:{rules}}));
+});
+
 for(const f of templates)test('QQ Music has no dedicated DNS/direct override and follows generic classification '+f,()=>{
  const c=JSON.parse(fs.readFileSync(path.join(root,f))),v=f.startsWith('config_vps_');
  // The mock geosite-cn intentionally does not list QQ: unknown traffic must reach normal fallback.
@@ -84,12 +136,12 @@ for(const f of templates)test('QQ Music has no dedicated DNS/direct override and
   assert.equal(route(c,d),c.route.final);
   assert.equal(route(c,d,'tcp',443,'Rule',{ip:'223.5.5.5'}),v?'direct':'🎯 全球直连');
  }
- const forbidden=new Set(['qq.com','qqmusic.com','gtimg.com','gtimg.cn','qpic.cn','qlogo.cn']);
- const check=value=>{
-  if(Array.isArray(value)){value.forEach(check);return;}
-  if(!value||typeof value!=='object')return;
-  for(const d of value.domain_suffix??[])assert.ok(!forbidden.has(d),'dedicated QQ/Tencent override remains: '+d);
-  Object.values(value).forEach(check);
- };
- check(c.dns.rules);check(c.route.rules);
+ assertNoDedicatedQQ(c);
+ const hasSet=(r,tag)=>list(r.rule_set??[]).includes(tag)||(r.rules??[]).some(s=>hasSet(s,tag));
+ assert.ok(c.dns.rules.some(r=>r.tag==='direct-primary'&&hasSet(r,'geosite-cn')));
+ assert.ok(c.dns.rules.some(r=>r.server==='tx'&&hasSet(r,'geosite-cn')));
+ assert.equal(route(c,'baidu.com'),v?'direct':'🎯 全球直连');
+ assert.equal(route(c,'unknown-foreign.example'),v?'VPS选择':'节点选择');
+ assert.equal(c.route.final,v?'VPS选择':'漏网之鱼');
+ if(!v)assert.equal(c.outbounds.find(o=>o.tag===c.route.final).default,'节点选择');
 });
