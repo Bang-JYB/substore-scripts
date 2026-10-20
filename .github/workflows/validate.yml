@@ -26,7 +26,14 @@ jobs:
           node-version: '22'
       - uses: actions/setup-python@v5
         with:
+          python-version: '3.9'
+      - name: Client probe Python 3.9 compatibility
+        run: python -m unittest discover -s tools/tests -p 'test_*.py' -v
+      - uses: actions/setup-python@v5
+        with:
           python-version: '3.12'
+      - name: Client probe Python 3.12 regressions
+        run: python -m unittest discover -s tools/tests -p 'test_*.py' -v
       - name: Script and routing regressions
         run: npm test
       - name: Seed publication failures
