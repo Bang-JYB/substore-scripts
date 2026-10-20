@@ -4,10 +4,10 @@ Not a Guangzhou ISP, real VPS, TLS/DoH throughput or OS TUN benchmark.
 No timing thresholds: query counts, routing and recovery are correctness gates.
 The rejected resolve-removal candidate exists in memory only, never production.
 """
-import collections, ipaddress, json, os, platform, socket, statistics, struct
-import subprocess, tempfile, time
+import collections, ipaddress, json, os, platform, socket, socketserver, statistics, struct
+import subprocess, tempfile, threading, time
 from pathlib import Path
-from runtime import BIN, Core, ROOT, World
+from runtime import BIN, Core, ROOT, World, address, recv_exact
 
 BASELINE=ROOT/'tests/fixtures/vps-7a72e9f-policy.json'
 DELAYS={'primary':.040,'backup':.040,'proxy':.080,'proxy-backup':.080,'local':.005}
@@ -23,6 +23,40 @@ class TimedWorld(World):
  def __init__(self):
   self.events=[]
   super().__init__()
+  owner=self
+  class ParallelSOCKS(socketserver.BaseRequestHandler):
+   def handle(self):
+    stream=self.request;stream.settimeout(3)
+    try:
+     _,n=recv_exact(stream,2);recv_exact(stream,n);stream.sendall(b'\x05\x00')
+     _,cmd,_=recv_exact(stream,3);host,port=address(stream);owner.nodes.append((host,port))
+     if cmd==3:
+      # The functional fixture intentionally has a simple serial UDP loop.
+      # Use independent mock DNS replies here so its artificial sleeps do
+      # not serialize A and AAAA on the same SOCKS association.
+      with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as udp:
+       udp.bind(('127.0.0.1',0));udp.settimeout(.1)
+       stream.sendall(b'\x05\x00\x00\x01'+socket.inet_aton('127.0.0.1')+struct.pack('!H',udp.getsockname()[1]))
+       def reply(packet,peer):
+        try:
+         if len(packet)<10 or packet[3]!=1:return
+         target_port=struct.unpack('!H',packet[8:10])[0]
+         role=next((k for k,v in owner.dns_ports.items() if v==target_port),None)
+         if role:
+          response=owner.answer(role,packet[10:])
+          if response is not None:udp.sendto(packet[:10]+response,peer)
+        except OSError:pass
+       while owner.available:
+        try:packet,peer=udp.recvfrom(8192)
+        except socket.timeout:continue
+        threading.Thread(target=reply,args=(packet,peer),daemon=True).start()
+     elif cmd==1:
+      stream.sendall(b'\x05\x00\x00\x01'+socket.inet_aton('127.0.0.1')+b'\x00\x00')
+      if stream.recv(8192).startswith((b'GET ',b'HEAD ')):
+       stream.sendall(b'HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 8\r\n\r\nproxy-ok')
+    except (OSError,EOFError,ValueError):pass
+  server=socketserver.ThreadingTCPServer(('127.0.0.1',0),ParallelSOCKS);server.daemon_threads=True
+  self.proxy_port=server.server_address[1];self.start(server)
  def answer(self,role,packet):
   name,qt=question(packet);start=time.perf_counter()
   time.sleep(DELAYS[role])
@@ -149,6 +183,12 @@ def run(samples):
      rows.append(row);world.failure.clear()
     finally:core.stop();world.failure.clear()
  finally:world.close()
+ # Stable correctness gates, independent of machine speed and injected delays.
+ for row in rows:
+  if row['phase']=='hot':assert not row['queries'],row
+  if row['phase']=='cold' and row['case']=='known-foreign-dns-1':
+   assert row['queries']==({'primary':1,'proxy':1} if row['variant']=='7a72e9f-policy' else {'proxy':1}),row
+  if row['phase']=='cold' and row['case']=='domestic-http':assert row['queries']=={'primary':2},row  # A + AAAA, not duplicate resolves
  report={'core':version,'host':platform.system(),'samples':samples,
          'measurement':'real official core and loopback sockets; synthetic DNS delays; no OS TUN or real VPS',
          'dns_delay_ms':{k:v*1000 for k,v in DELAYS.items()},'rows':rows,'summary':[]}
