@@ -93,8 +93,8 @@ def https_download(core, cert, path):
         stream.sendall(b'\5\1\0'+destination('github.com', 443))
         assert recv_exact(stream, 3) == b'\5\0\0';address(stream)
         context = ssl.create_default_context(cafile=str(cert))
-        with context.wrap_socket(stream, server_hostname='localhost') as secure:
-            secure.sendall(('GET '+path+' HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n').encode())
+        with context.wrap_socket(stream, server_hostname='github.com') as secure:
+            secure.sendall(('GET '+path+' HTTP/1.1\r\nHost: github.com\r\nConnection: close\r\n\r\n').encode())
             response = http.client.HTTPResponse(secure);response.begin()
             assert response.status == 200
             return response.read()
@@ -140,7 +140,7 @@ class UDP443Tests(unittest.TestCase):
                     with socket.create_connection(('127.0.0.1', core.port), timeout=5) as stream:
                         stream.settimeout(5);stream.sendall(b'\5\1\0');recv_exact(stream, 2)
                         stream.sendall(b'\5\1\0' + destination(host, 443));self.assertEqual(recv_exact(stream, 3), b'\5\0\0')
-                        address(stream);stream.sendall(b'GET / HTTP/1.1\r\nHost: fixture\r\n\r\n')
+                        address(stream);stream.sendall(('GET / HTTP/1.1\r\nHost: '+host+'\r\n\r\n').encode())
                         self.assertIn(b'proxy-ok', stream.recv(8192))
                     self.assertNotIn('outbound/socks[direct]', core.logpath.read_text()[before:], host)
                 for host in ['baidu.com', 'office.com', 'apple.com', 'nas.lan', '127.0.0.9', '223.5.5.5']:
@@ -159,7 +159,7 @@ class UDP443Tests(unittest.TestCase):
                 core.stop()
 
     def make_tls(self):
-        pair = subprocess.check_output([BIN, 'generate', 'tls-keypair', 'localhost'], text=True)
+        pair = subprocess.check_output([BIN, 'generate', 'tls-keypair', 'github.com'], text=True)
         cert = re.search(r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----', pair, re.S).group()
         key = re.search(r'-----BEGIN .*?PRIVATE KEY-----.*?-----END .*?PRIVATE KEY-----', pair, re.S).group()
         cert_path = self.tmp/'cert.pem';key_path = self.tmp/'key.pem'
@@ -210,7 +210,7 @@ class UDP443Tests(unittest.TestCase):
                         if 'server' not in node: continue
                         tag = node['tag'];node.clear();node.update(type=protocol, tag=tag,
                             server='127.0.0.1', server_port=443, password='fixture-only',
-                            tls={'enabled':True,'server_name':'localhost','certificate_path':str(cert)})
+                            tls={'enabled':True,'server_name':'github.com','certificate_path':str(cert)})
                         if protocol == 'tuic': node['uuid'] = UUID
                         node_tags.append(tag)
                     for group in core.config['outbounds']:
@@ -236,7 +236,7 @@ class UDP443Tests(unittest.TestCase):
                 if 'server' not in node: continue
                 tag = node['tag'];node.clear();node.update(type=protocol, tag=tag, server='127.0.0.1',
                     server_port=443, password='fixture-only',
-                    tls={'enabled':True, 'server_name':'localhost','certificate_path':str(cert)})
+                    tls={'enabled':True, 'server_name':'github.com','certificate_path':str(cert)})
                 if protocol == 'tuic': node['uuid'] = UUID
             core.config['route']['rules'].insert(2, {'network':'udp','port':443,'action':'reject'})
             write_core(core);core.start()
