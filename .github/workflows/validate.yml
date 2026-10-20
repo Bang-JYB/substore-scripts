@@ -43,3 +43,6 @@ jobs:
         run: |
           python scripts/prepare-rule-seeds.py --config config_tun.json --output .test-output/real-seeds --core "$SING_BOX"
           python tests/upstream-rules.py --seeds .test-output/real-seeds --core "$SING_BOX"
+      - name: VPS policy cold and warm cache A/B (synthetic network)
+        if: runner.os == 'Linux'
+        run: python tests/vps-performance.py
