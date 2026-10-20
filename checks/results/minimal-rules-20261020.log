@@ -1,0 +1,180 @@
+UTC: 2026-10-20T14:33:49.938839+00:00
+Scope: local Linux fixture checks and official core config parsing; no real VPS/TUN/performance/CI claim
+Historical baseline: 7a72e9f56637a50cbf89a6c0a32df8cb1e7c7c26
+PR parent before this revision: 3854c083791e4e727871c883349d3d44145884c1
+Command: node --test-reporter=tap checks/minimal-rules.mjs --core /workspace/scratch/a94a373274de/substore-followup/.test-output/core/sing-box-1.14.2-linux-amd64/sing-box
+Core version:
+sing-box version 1.14.2
+
+Environment: go1.26.8 linux/amd64
+Tags: with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_cloudflared,with_naive_outbound,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_purego
+Revision: af6e64c3b69e6132ebaee0e1a3d24e93903f6709
+CGO: disabled
+Core SHA256: fc9c6e6ab345f045b16a0ed10d1ff28d68e8e56e7749fca30738d1406e98d7b8
+Input SHA256:
+2e56a51f81927fb563fa79eb1fc53f2b1179926f37f59fc7d0b06d90c6d4e2ca  config_pc.json
+fdaf26d4f6b592e45b2473ebaa48eda9c5531a843844b3ff7f96c7d48792d04a  config_tun.json
+c1b3de6e4ab27907ecd379b8b026be8cfadfd7d6255906c72aba06f15b459ce4  config_android.json
+179cb554f2c0803257a55102627f438ed93ad43aaa3abb49d116062e4d93eaed  config_vps_notun.json
+a048532033f854b9f48c788d0fb3b53cf792f92a2c4bb27578ef6427eb976930  config_vps_standalone.json
+518c733cd2cc1395a310417885ba06bd3a4618ac9cd1e7bfe9874b95e2c68b1a  config_vps_android.json
+8aa8d10af8a45c078c0c0efb905ac7148c6564ea6b94dc4473f5796ee16cbb8e  checks/minimal-rules.mjs
+a463822024ff83e219edff7dbddf3036e26b11a4cecb95562be8bcde7f35637d  inject-nodes.js
+f4ebfacc4f4d97748e3e8df821ef45d7e6e3f9ec257831381e6aed5c9d4a843d  inject-vps-standalone.js
+
+CORE_OK config_pc.json
+CORE_OK config_tun.json
+CORE_OK config_android.json
+CORE_OK config_vps_notun.json
+CORE_OK config_vps_standalone.json
+CORE_OK config_vps_android.json
+TAP version 13
+# Subtest: QQ-specific overrides removed; ordinary classification retained: config_pc.json
+ok 1 - QQ-specific overrides removed; ordinary classification retained: config_pc.json
+  ---
+  duration_ms: 1.489023
+  type: 'test'
+  ...
+# Subtest: only the declared rule edits are permitted: config_pc.json
+ok 2 - only the declared rule edits are permitted: config_pc.json
+  ---
+  duration_ms: 1.408485
+  type: 'test'
+  ...
+# Subtest: AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_pc.json
+ok 3 - AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_pc.json
+  ---
+  duration_ms: 0.280563
+  type: 'test'
+  ...
+# Subtest: original single UDP443 guard and its priority limitations are explicit: config_pc.json
+ok 4 - original single UDP443 guard and its priority limitations are explicit: config_pc.json
+  ---
+  duration_ms: 0.551402
+  type: 'test'
+  ...
+# Subtest: QQ-specific overrides removed; ordinary classification retained: config_tun.json
+ok 5 - QQ-specific overrides removed; ordinary classification retained: config_tun.json
+  ---
+  duration_ms: 0.401611
+  type: 'test'
+  ...
+# Subtest: only the declared rule edits are permitted: config_tun.json
+ok 6 - only the declared rule edits are permitted: config_tun.json
+  ---
+  duration_ms: 0.470273
+  type: 'test'
+  ...
+# Subtest: AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_tun.json
+ok 7 - AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_tun.json
+  ---
+  duration_ms: 0.181117
+  type: 'test'
+  ...
+# Subtest: original single UDP443 guard and its priority limitations are explicit: config_tun.json
+ok 8 - original single UDP443 guard and its priority limitations are explicit: config_tun.json
+  ---
+  duration_ms: 0.214436
+  type: 'test'
+  ...
+# Subtest: QQ-specific overrides removed; ordinary classification retained: config_android.json
+ok 9 - QQ-specific overrides removed; ordinary classification retained: config_android.json
+  ---
+  duration_ms: 0.179955
+  type: 'test'
+  ...
+# Subtest: only the declared rule edits are permitted: config_android.json
+ok 10 - only the declared rule edits are permitted: config_android.json
+  ---
+  duration_ms: 1.624222
+  type: 'test'
+  ...
+# Subtest: AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_android.json
+ok 11 - AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_android.json
+  ---
+  duration_ms: 0.252812
+  type: 'test'
+  ...
+# Subtest: original single UDP443 guard and its priority limitations are explicit: config_android.json
+ok 12 - original single UDP443 guard and its priority limitations are explicit: config_android.json
+  ---
+  duration_ms: 0.152364
+  type: 'test'
+  ...
+# Subtest: QQ-specific overrides removed; ordinary classification retained: config_vps_notun.json
+ok 13 - QQ-specific overrides removed; ordinary classification retained: config_vps_notun.json
+  ---
+  duration_ms: 0.267294
+  type: 'test'
+  ...
+# Subtest: only the declared rule edits are permitted: config_vps_notun.json
+ok 14 - only the declared rule edits are permitted: config_vps_notun.json
+  ---
+  duration_ms: 0.47527
+  type: 'test'
+  ...
+# Subtest: VPS UDP and dual-stack behavior unchanged: config_vps_notun.json
+ok 15 - VPS UDP and dual-stack behavior unchanged: config_vps_notun.json
+  ---
+  duration_ms: 0.14888
+  type: 'test'
+  ...
+# Subtest: QQ-specific overrides removed; ordinary classification retained: config_vps_standalone.json
+ok 16 - QQ-specific overrides removed; ordinary classification retained: config_vps_standalone.json
+  ---
+  duration_ms: 0.087529
+  type: 'test'
+  ...
+# Subtest: only the declared rule edits are permitted: config_vps_standalone.json
+ok 17 - only the declared rule edits are permitted: config_vps_standalone.json
+  ---
+  duration_ms: 0.252692
+  type: 'test'
+  ...
+# Subtest: VPS UDP and dual-stack behavior unchanged: config_vps_standalone.json
+ok 18 - VPS UDP and dual-stack behavior unchanged: config_vps_standalone.json
+  ---
+  duration_ms: 0.043554
+  type: 'test'
+  ...
+# Subtest: QQ-specific overrides removed; ordinary classification retained: config_vps_android.json
+ok 19 - QQ-specific overrides removed; ordinary classification retained: config_vps_android.json
+  ---
+  duration_ms: 0.093688
+  type: 'test'
+  ...
+# Subtest: only the declared rule edits are permitted: config_vps_android.json
+ok 20 - only the declared rule edits are permitted: config_vps_android.json
+  ---
+  duration_ms: 0.518093
+  type: 'test'
+  ...
+# Subtest: VPS UDP and dual-stack behavior unchanged: config_vps_android.json
+ok 21 - VPS UDP and dual-stack behavior unchanged: config_vps_android.json
+  ---
+  duration_ms: 0.057114
+  type: 'test'
+  ...
+# Subtest: unchanged injectors preserve groups, Hong Kong, filters, pools and node protocol fields
+ok 22 - unchanged injectors preserve groups, Hong Kong, filters, pools and node protocol fields
+  ---
+  duration_ms: 17.221204
+  type: 'test'
+  ...
+# Subtest: official 1.14.2 checks all six fully injected configurations
+ok 23 - official 1.14.2 checks all six fully injected configurations
+  ---
+  duration_ms: 285.802154
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 338.946709
+
+Process exit code: 0

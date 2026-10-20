@@ -31,17 +31,6 @@
         "server": "proxy-dns"
       },
       {
-        "domain_suffix": [
-          "qq.com",
-          "qqmusic.com",
-          "gtimg.com",
-          "gtimg.cn",
-          "qpic.cn",
-          "qlogo.cn"
-        ],
-        "server": "vps-dns"
-      },
-      {
         "rule_set": "geosite-github",
         "server": "proxy-dns"
       },
@@ -144,17 +133,6 @@
       {
         "clash_mode": "Global",
         "outbound": "VPS选择"
-      },
-      {
-        "domain_suffix": [
-          "qq.com",
-          "qqmusic.com",
-          "gtimg.com",
-          "gtimg.cn",
-          "qpic.cn",
-          "qlogo.cn"
-        ],
-        "outbound": "direct"
       },
       {
         "rule_set": "geosite-github",
