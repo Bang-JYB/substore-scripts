@@ -45,6 +45,10 @@ jobs:
       - name: DNS, detour outage, FakeIP and remote rule cache integration
         if: runner.os == 'Linux'
         run: python tests/runtime.py
+      - name: UDP 443 routing and real loopback HY2/TUIC over UDP 443
+        if: runner.os == 'Linux'
+        # Bind loopback UDP/443 only; no firewall, sysctl or routing changes.
+        run: sudo --preserve-env=SING_BOX,SING_BOX_VERSION "$(command -v python)" tests/udp443-runtime.py
       - name: Decode and validate actual upstream rule seeds
         if: runner.os == 'Linux'
         run: |
