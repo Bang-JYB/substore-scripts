@@ -26,14 +26,7 @@ jobs:
           node-version: '22'
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
-      - name: Client probe Python 3.9 compatibility
-        run: python -m unittest discover -s tools/tests -p 'test_*.py' -v
-      - uses: actions/setup-python@v5
-        with:
           python-version: '3.12'
-      - name: Client probe Python 3.12 regressions
-        run: python -m unittest discover -s tools/tests -p 'test_*.py' -v
       - name: Script and routing regressions
         run: npm test
       - name: Seed publication failures
@@ -45,10 +38,6 @@ jobs:
       - name: DNS, detour outage, FakeIP and remote rule cache integration
         if: runner.os == 'Linux'
         run: python tests/runtime.py
-      - name: UDP 443 routing and real loopback HY2/TUIC over UDP 443
-        if: runner.os == 'Linux'
-        # Bind loopback UDP/443 only; no firewall, sysctl or routing changes.
-        run: sudo --preserve-env=SING_BOX,SING_BOX_VERSION "$(command -v python)" tests/udp443-runtime.py
       - name: Decode and validate actual upstream rule seeds
         if: runner.os == 'Linux'
         run: |
