@@ -16,33 +16,6 @@
         "tag": "proxy-dns",
         "server": "8.8.8.8",
         "detour": "VPS选择"
-      },
-      {
-        "type": "https",
-        "tag": "tx",
-        "server": "doh.pub",
-        "domain_resolver": "hosts"
-      },
-      {
-        "type": "hosts",
-        "tag": "hosts",
-        "predefined": {
-          "doh.pub": [
-            "1.12.12.21",
-            "120.53.53.53"
-          ]
-        }
-      },
-      {
-        "type": "local",
-        "tag": "local",
-        "prefer_go": true
-      },
-      {
-        "type": "https",
-        "tag": "proxy-backup",
-        "server": "1.1.1.1",
-        "detour": "VPS选择"
       }
     ],
     "final": "proxy-dns",
@@ -50,256 +23,64 @@
     "reverse_mapping": true,
     "rules": [
       {
-        "type": "logical",
-        "mode": "or",
-        "rules": [
-          {
-            "domain_suffix": [
-              "lan",
-              "local",
-              "home.arpa"
-            ]
-          },
-          {
-            "domain_regex": [
-              "^[^.]+$"
-            ]
-          },
-          {
-            "rule_set": "geosite-private"
-          }
-        ],
-        "server": "local"
+        "clash_mode": "Direct",
+        "server": "vps-dns"
       },
       {
         "clash_mode": "Global",
-        "action": "evaluate",
-        "server": "proxy-dns",
-        "tag": "global-primary",
-        "timeout": "3s"
+        "server": "proxy-dns"
       },
       {
-        "match_response": "global-primary",
-        "response_rcode": "NOERROR",
-        "action": "respond"
-      },
-      {
-        "match_response": "global-primary",
-        "response_rcode": "NXDOMAIN",
-        "action": "respond"
-      },
-      {
-        "clash_mode": "Global",
-        "server": "proxy-backup",
-        "timeout": "3s"
-      },
-      {
-        "type": "logical",
-        "mode": "and",
-        "rules": [
-          {
-            "clash_mode": "Direct",
-            "invert": true
-          },
-          {
-            "rule_set": [
-              "geosite-github",
-              "geosite-ai",
-              "geosite-foreign"
-            ]
-          }
+        "domain_suffix": [
+          "qq.com",
+          "qqmusic.com",
+          "gtimg.com",
+          "gtimg.cn",
+          "qpic.cn",
+          "qlogo.cn"
         ],
-        "action": "evaluate",
-        "server": "proxy-dns",
-        "tag": "proxy-primary",
-        "timeout": "3s"
+        "server": "vps-dns"
       },
       {
-        "match_response": "proxy-primary",
-        "response_rcode": "NOERROR",
-        "action": "respond"
+        "rule_set": "geosite-github",
+        "server": "proxy-dns"
       },
       {
-        "match_response": "proxy-primary",
-        "response_rcode": "NXDOMAIN",
-        "action": "respond"
-      },
-      {
-        "type": "logical",
-        "mode": "and",
-        "rules": [
-          {
-            "clash_mode": "Direct",
-            "invert": true
-          },
-          {
-            "rule_set": [
-              "geosite-github",
-              "geosite-ai",
-              "geosite-foreign"
-            ]
-          }
+        "rule_set": [
+          "geosite-apple",
+          "geosite-microsoft"
         ],
-        "server": "proxy-backup",
-        "timeout": "3s"
+        "server": "vps-dns"
       },
       {
-        "type": "logical",
-        "mode": "or",
-        "rules": [
-          {
-            "clash_mode": "Direct"
-          },
-          {
-            "domain_suffix": [
-              "cn"
-            ]
-          },
-          {
-            "rule_set": [
-              "geosite-apple",
-              "geosite-microsoft",
-              "geosite-cn"
-            ]
-          }
+        "domain_suffix": [
+          "cn",
+          "lan",
+          "local"
+        ],
+        "server": "vps-dns"
+      },
+      {
+        "rule_set": [
+          "geosite-cn",
+          "geosite-private"
+        ],
+        "server": "vps-dns"
+      },
+      {
+        "query_type": [
+          "A",
+          "AAAA"
         ],
         "action": "evaluate",
         "server": "vps-dns",
-        "tag": "direct-primary",
+        "tag": "domestic-check",
         "timeout": "2s"
       },
       {
-        "match_response": "direct-primary",
-        "response_rcode": "NOERROR",
-        "action": "respond"
-      },
-      {
-        "match_response": "direct-primary",
-        "response_rcode": "NXDOMAIN",
-        "action": "respond"
-      },
-      {
-        "type": "logical",
-        "mode": "or",
-        "rules": [
-          {
-            "clash_mode": "Direct"
-          },
-          {
-            "domain_suffix": [
-              "cn"
-            ]
-          },
-          {
-            "rule_set": [
-              "geosite-apple",
-              "geosite-microsoft",
-              "geosite-cn"
-            ]
-          }
-        ],
-        "server": "tx",
-        "timeout": "2s"
-      },
-      {
-        "type": "logical",
-        "mode": "and",
-        "rules": [
-          {
-            "query_type": [
-              "A",
-              "AAAA"
-            ]
-          },
-          {
-            "rule_set": "geosite-foreign",
-            "invert": true
-          }
-        ],
-        "action": "evaluate",
-        "server": "vps-dns",
-        "tag": "geo-primary",
-        "timeout": "2s"
-      },
-      {
-        "match_response": "geo-primary",
+        "match_response": "domestic-check",
         "rule_set": "geoip-cn",
-        "response_rcode": "NOERROR",
         "action": "respond"
-      },
-      {
-        "match_response": "geo-primary",
-        "ip_is_private": true,
-        "response_rcode": "NOERROR",
-        "action": "respond"
-      },
-      {
-        "type": "logical",
-        "mode": "and",
-        "rules": [
-          {
-            "type": "logical",
-            "mode": "and",
-            "rules": [
-              {
-                "query_type": [
-                  "A",
-                  "AAAA"
-                ]
-              },
-              {
-                "rule_set": "geosite-foreign",
-                "invert": true
-              }
-            ]
-          },
-          {
-            "match_response": "geo-primary",
-            "response_rcode": "NOERROR",
-            "invert": true
-          },
-          {
-            "match_response": "geo-primary",
-            "response_rcode": "NXDOMAIN",
-            "invert": true
-          }
-        ],
-        "action": "evaluate",
-        "server": "tx",
-        "tag": "geo-backup",
-        "timeout": "2s"
-      },
-      {
-        "match_response": "geo-backup",
-        "rule_set": "geoip-cn",
-        "response_rcode": "NOERROR",
-        "action": "respond"
-      },
-      {
-        "match_response": "geo-backup",
-        "ip_is_private": true,
-        "response_rcode": "NOERROR",
-        "action": "respond"
-      },
-      {
-        "action": "evaluate",
-        "server": "proxy-dns",
-        "tag": "proxy-final",
-        "timeout": "3s"
-      },
-      {
-        "match_response": "proxy-final",
-        "response_rcode": "NOERROR",
-        "action": "respond"
-      },
-      {
-        "match_response": "proxy-final",
-        "response_rcode": "NXDOMAIN",
-        "action": "respond"
-      },
-      {
-        "server": "proxy-backup",
-        "timeout": "3s"
       }
     ]
   },
@@ -365,54 +146,6 @@
         "outbound": "direct"
       },
       {
-        "type": "logical",
-        "mode": "or",
-        "rules": [
-          {
-            "domain_suffix": [
-              "lan",
-              "local",
-              "home.arpa"
-            ]
-          },
-          {
-            "domain_regex": [
-              "^[^.]+$"
-            ]
-          },
-          {
-            "rule_set": "geosite-private"
-          }
-        ],
-        "action": "resolve"
-      },
-      {
-        "type": "logical",
-        "mode": "or",
-        "rules": [
-          {
-            "domain_suffix": [
-              "lan",
-              "local",
-              "home.arpa"
-            ]
-          },
-          {
-            "domain_regex": [
-              "^[^.]+$"
-            ]
-          },
-          {
-            "rule_set": "geosite-private"
-          }
-        ],
-        "outbound": "direct"
-      },
-      {
-        "clash_mode": "Direct",
-        "action": "resolve"
-      },
-      {
         "clash_mode": "Direct",
         "outbound": "direct"
       },
@@ -421,21 +154,21 @@
         "outbound": "VPS选择"
       },
       {
+        "domain_suffix": [
+          "qq.com",
+          "qqmusic.com",
+          "gtimg.com",
+          "gtimg.cn",
+          "qpic.cn",
+          "qlogo.cn"
+        ],
+        "outbound": "direct"
+      },
+      {
         "rule_set": "geosite-github",
         "outbound": "VPS选择"
       },
       {
-        "rule_set": "geosite-ai",
-        "outbound": "VPS选择"
-      },
-      {
-        "rule_set": [
-          "geosite-apple",
-          "geosite-microsoft"
-        ],
-        "action": "resolve"
-      },
-      {
         "rule_set": [
           "geosite-apple",
           "geosite-microsoft"
@@ -443,31 +176,22 @@
         "outbound": "direct"
       },
       {
-        "domain_suffix": "cn",
-        "action": "resolve"
-      },
-      {
-        "domain_suffix": "cn",
+        "domain_suffix": [
+          "cn",
+          "lan",
+          "local"
+        ],
         "outbound": "direct"
       },
       {
-        "rule_set": "geosite-cn",
-        "action": "resolve"
-      },
-      {
-        "rule_set": "geosite-cn",
+        "rule_set": [
+          "geosite-cn",
+          "geosite-private"
+        ],
         "outbound": "direct"
       },
       {
-        "rule_set": "geosite-foreign",
-        "outbound": "VPS选择"
-      },
-      {
         "action": "resolve"
-      },
-      {
-        "ip_is_private": true,
-        "outbound": "direct"
       },
       {
         "rule_set": "geoip-cn",
@@ -528,22 +252,6 @@
         "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/github.srs",
         "http_client": "rules-via-vps",
         "update_interval": "168h"
-      },
-      {
-        "type": "remote",
-        "tag": "geosite-ai",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/category-ai-!cn.srs",
-        "http_client": "rules-via-vps",
-        "update_interval": "168h"
-      },
-      {
-        "type": "remote",
-        "tag": "geosite-foreign",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/geolocation-!cn.srs",
-        "http_client": "rules-via-vps",
-        "update_interval": "168h"
       }
     ]
   },
@@ -551,8 +259,7 @@
     "cache_file": {
       "enabled": true,
       "path": "cache-vps.db",
-      "cache_id": "vps-standalone-v1",
-      "store_dns": true
+      "cache_id": "vps-standalone-v1"
     },
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
@@ -564,7 +271,11 @@
       "tag": "rules-via-vps",
       "engine": "go",
       "version": 1,
-      "detour": "VPS选择"
+      "detour": "VPS选择",
+      "domain_resolver": {
+        "server": "vps-dns",
+        "strategy": "prefer_ipv4"
+      }
     }
   ]
 }

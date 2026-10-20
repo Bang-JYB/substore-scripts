@@ -29,15 +29,6 @@ try {
 } catch (_) {
   throw new Error('无法读取模板，请使用 config_vps_standalone.json');
 }
-// Validate before reading the subscription: core check permits an empty inbound list.
-if (!Array.isArray(config.inbounds) || !config.inbounds.length ||
-    config.inbounds.some(inbound => !inbound || typeof inbound.type !== 'string' || !inbound.type.trim())) {
-  throw new Error('模板入站 inbounds 必须是非空且有效的数组');
-}
-const inbounds = mode === 'mixed' ? config.inbounds.filter(inbound => inbound.type !== 'tun') : config.inbounds;
-if (!inbounds.length) {
-  throw new Error('mode=mixed 会删除全部 TUN 入站，请使用含 mixed 入站的桌面模板，或保留 Android 默认 mode=tun');
-}
 for (const [tag, type] of [['VPS选择', 'selector'], ['VPS自动', 'urltest'], ['direct', 'direct']]) {
   if (config.outbounds?.filter(node => node.tag === tag && node.type === type).length !== 1) {
     throw new Error('模板缺少或重复策略组：' + tag);
@@ -59,23 +50,14 @@ try {
   throw new Error('订阅转换结果不是合法 sing-box JSON');
 }
 if (!Array.isArray(source?.outbounds)) throw new Error('订阅转换结果缺少 outbounds');
-// 1.14.2 server-based proxy types (include/registry.go and include/quic.go).
-// Endpoint/Tor/group/removed/unknown types are not subscription server proxies.
-// Sub-Store SS/Snell ShadowTLS wrappers may delegate their server to a validated hop.
-const supported = new Set(['shadowsocks', 'vmess', 'vless', 'trojan', 'hysteria', 'hysteria2',
-  'tuic', 'anytls', 'naive', 'ssh', 'shadowtls', 'http', 'socks', 'snell']);
+// 只注入转换后有服务器地址的代理出站，排除来源中的策略组和 direct。
 const nodes = [], tags = [], seen = new Map(), originalTags = new Map();
 const reserved = new Set(['VPS选择', 'VPS自动', 'direct']);
 let duplicates = 0;
 for (const raw of source.outbounds) {
-  if (!raw || !supported.has(raw.type)) continue;
-  const wrapped = ['shadowsocks', 'snell'].includes(raw.type) && raw.server === undefined &&
-    typeof raw.detour === 'string' && raw.detour.trim();
-  if ((typeof raw.server !== 'string' || !raw.server.trim()) && !wrapped) {
-    throw new Error('代理节点缺少有效 server 服务器地址：' + String(raw.tag ?? raw.type));
-  }
-  // Keep source reference keys exact; trimming is only for the output label.
-  const id = identity(raw), original = String(raw.tag ?? '');
+  if (!raw || typeof raw.server !== 'string' || !raw.server.trim()) continue;
+  if (['selector', 'urltest', 'direct', 'block', 'dns'].includes(raw.type)) continue;
+  const id = identity(raw), original = String(raw.tag ?? '').trim();
   if (original && originalTags.has(original) && originalTags.get(original).id !== id) {
     throw new Error('订阅中节点重名且配置不同，请先重命名：' + original);
   }
@@ -84,7 +66,7 @@ for (const raw of source.outbounds) {
     duplicates++;
     continue;
   }
-  const base = original.trim() || 'VPS节点';
+  const base = original || 'VPS节点';
   let tag = base, suffix = 2;
   while (reserved.has(tag)) tag = base + ' [' + suffix++ + ']';
   reserved.add(tag);
@@ -100,50 +82,36 @@ for (const raw of source.outbounds) {
 }
 if (!nodes.length) throw new Error('单订阅中没有可转换的服务器代理节点，已停止生成');
 for (const node of nodes) {
-  if (!node.detour) continue;
-  if (typeof node.detour !== 'string') throw new Error('节点链式拨号依赖必须是名称：' + node.tag);
-  if (node.detour === 'direct') {
-    if (originalTags.has('direct')) throw new Error('direct 依赖存在歧义，请重命名来源节点 direct');
-    continue;
-  }
+  if (!node.detour || node.detour === 'direct') continue;
   const target = originalTags.get(node.detour);
   if (!target) throw new Error('链式拨号依赖不存在或不受支持：' + node.tag);
   node.detour = target.tag;
 }
 // 链式拨号必须能到达出口，避免自引用或环形依赖。
 const byTag = new Map(nodes.map(node => [node.tag, node]));
-for (const node of nodes) if (node.server === undefined && byTag.get(node.detour)?.type !== 'shadowtls') {
-  throw new Error('无 server 的包装节点必须依赖有效 ShadowTLS 出站：' + node.tag);
+const checked = new Set(), visiting = new Set();
+function checkChain(tag) {
+  if (checked.has(tag)) return;
+  if (visiting.has(tag)) throw new Error('链式拨号存在循环：' + tag);
+  visiting.add(tag);
+  const target = byTag.get(tag)?.detour;
+  if (target && target !== 'direct') checkChain(target);
+  visiting.delete(tag);
+  checked.add(tag);
 }
-const checked = new Set();
-for (const start of tags) {
-  const visiting = new Set();
-  let tag = start;
-  while (tag && tag !== 'direct' && !checked.has(tag)) {
-    if (visiting.has(tag)) throw new Error('链式拨号存在循环：' + tag);
-    visiting.add(tag);
-    tag = byTag.get(tag)?.detour;
-  }
-  for (const item of visiting) checked.add(item);
-}
-// Keep referenced ShadowTLS hops for detour but exclude them from policy selection.
-const helpers = new Set(nodes.filter(node => byTag.get(node.detour)?.type === 'shadowtls').map(node => node.detour));
-const selectable = tags.filter(tag => !helpers.has(tag));
-if (!selectable.length) throw new Error('单订阅中没有可选择的代理节点，ShadowTLS 辅助出站不能独立选用');
+for (const tag of tags) checkChain(tag);
 const selector = clone(config.outbounds.find(node => node.tag === 'VPS选择'));
 const auto = clone(config.outbounds.find(node => node.tag === 'VPS自动'));
 const direct = clone(config.outbounds.find(node => node.tag === 'direct'));
-selector.outbounds = ['VPS自动', ...selectable];
+selector.outbounds = ['VPS自动', ...tags];
 selector.default = 'VPS自动';
-auto.outbounds = selectable;
+auto.outbounds = tags;
 direct.domain_resolver = {server: 'vps-dns', strategy};
 config.outbounds = [selector, auto, direct, ...nodes];
 config.dns.strategy = strategy;
 config.route.default_domain_resolver = {server: 'vps-dns', strategy};
-config.inbounds = inbounds;
-const rulesDir=String(args.rules_dir??'').trim().replace(/\\/g,'/').replace(/\/+$/,'');
-if(rulesDir)for(const rule of config.route?.rule_set??[])if(rule.type==='remote')rule.initial_path=rulesDir+'/{tag}.srs';
+if (mode === 'mixed') config.inbounds = config.inbounds.filter(inbound => inbound.type !== 'tun');
 const output = JSON.stringify(config);
 if (new TextEncoder().encode(output).length > 1024 * 1024) throw new Error('生成配置超过 1 MiB，请减少订阅节点');
 $content = output;
-console.log('[VPS 独立订阅] ' + name + '：' + selectable.length + ' 个节点，去重 ' + duplicates + '；双栈 ' + strategy + '；' + mode);
+console.log('[VPS 独立订阅] ' + name + '：' + nodes.length + ' 个节点，去重 ' + duplicates + '；双栈 ' + strategy + '；' + mode);
