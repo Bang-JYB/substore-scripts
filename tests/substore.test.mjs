@@ -78,8 +78,12 @@ test('malformed external JSON and unsupported internal-array shape fail explicit
  }
 });
 test('captured fixture pins source, bundle and input hashes; unknown bundle cannot overwrite it',()=>{
- const input=fs.readFileSync(path.join(root,'tests/fixtures/substore-input.json'));
- assert.equal(crypto.createHash('sha256').update(input).digest('hex'),captured.provenance.input_sha256);
+ const input=fs.readFileSync(path.join(root,'tests/fixtures/substore-input.json'),'utf8');
+ const fingerprint=text=>crypto.createHash('sha256').update(text.replace(/\r\n/g,'\n')).digest('hex');
+ const lf=input.replace(/\r\n/g,'\n');
+ assert.equal(captured.provenance.input_hash_normalization,'UTF-8, CRLF normalized to LF');
+ for(const text of [lf,lf.replace(/\n/g,'\r\n')])assert.equal(fingerprint(text),captured.provenance.input_sha256);
+ assert.notEqual(fingerprint(lf.replace('机场 Snell4','changed-input')),captured.provenance.input_sha256);
  assert.equal(captured.provenance.sha256,'599ed6ae6570c17939282f2f2a6fa28b204fdc1fd36faf6ae9b534588f26c80f');
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'substore-digest-'));
  try{

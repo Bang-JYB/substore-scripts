@@ -15,7 +15,7 @@ const context=vm.createContext({TextEncoder,TextDecoder,setTimeout,clearTimeout,
  $prefs:{valueForKey:k=>prefs.get(k),setValueForKey:(v,k)=>{prefs.set(k,v);return true}},$notify(){}});
 const module=new vm.SourceTextModule(source.toString(),{context});
 await module.link(()=>{throw Error('Fixture external imports are forbidden')});await module.evaluate({timeout:10000});
-const inputPath=path.join(root,'tests/fixtures/substore-input.json'),input=fs.readFileSync(inputPath);
+const inputPath=path.join(root,'tests/fixtures/substore-input.json'),input=fs.readFileSync(inputPath,'utf8').replace(/\r\n/g,'\n');
 const data=JSON.parse(input);
 context.parse=module.namespace.parse;context.produce=module.namespace.produce;
 const convert=nodes=>{
@@ -24,7 +24,7 @@ const convert=nodes=>{
 };
 const output={provenance:{release:'2.42.6',commit:'1f0318bc6feb46fbe204836f32ca7acab37ea67e',
  url:'https://github.com/sub-store-org/Sub-Store/releases/download/2.42.6/proxy-utils.esm.mjs',sha256:expected,
- input_sha256:crypto.createHash('sha256').update(input).digest('hex'),
+ input_sha256:crypto.createHash('sha256').update(input).digest('hex'),input_hash_normalization:'UTF-8, CRLF normalized to LF',
  scope:'Unmodified official parse + produce; in-memory QX host storage, network denied; not a live backend integration'},
  combined:convert([...data.airport,...data.vps]),vps:convert(data.vps),
  renamedCombined:convert([...data.airport,...data.vps.map(n=>({...n,name:'集合 / '+n.name}))])};

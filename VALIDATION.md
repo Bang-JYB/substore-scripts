@@ -15,7 +15,9 @@ node --experimental-vm-modules scripts/capture-substore-fixture.mjs /本地路�
 npm test
 ```
 
-生成器先验证固定 SHA256，再执行未改动的官方 parse/produce；不允许网络或额外 import。修改输入需同步重生成快照，输入 hash 过期、错误归档、无效依赖/协议、辅助 hop 被放入池均有回归。不会启动实际 Sub-Store 服务器，不能证明用户后端的处理器顺序/版本/私有订阅格式。
+生成器先验证固定 SHA256，再执行未改动的官方 parse/produce；不允许网络或额外 import。修改输入需同步重生成快照，输入摘要按 UTF-8/LF 规范化（避免 Windows autocrlf 造成误报，内容改变仍会失败）；输入 hash 过期、错误归档、无效依赖/协议、辅助 hop 被放入池均有回归。不会启动实际 Sub-Store 服务器，不能证明用户后端的处理器顺序/版本/私有订阅格式。
+
+首轮分支 280fff8 的两个 Windows CI 在输入原始字节摘要上失败，实测 LF/CRLF 摘要与日志完全一致；因此仅对人工输入统一 CRLF→LF，保留官方归档的严格原字节 SHA256。回归同时覆盖 LF/CRLF 相等、输入内容变化仍不等及错误归档不得执行/覆盖快照。
 
 下方为先前轮次历史记录，本轮以此节与最终提交关联的六任务 CI 为准。
 
