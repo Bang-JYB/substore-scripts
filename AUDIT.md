@@ -1,5 +1,41 @@
 # sing-box 1.14.2 审查与整改记录（2026-10-19）
 
+## 2026-10-20 边界复审（基线 2c864da）
+
+范围：两份注入脚本的小修、转换输入回归、文档。六份 JSON、全部策略组、MTU、测速间隔、UDP/系统代理、DNS 主备、VPS 双栈均未改。生产目标仍为 1.14.2，兼容性矩阵仍为 1.14.2/1.14.3 × 三系统。
+
+| 先证明的问题 | 必要修复 | 回归 |
+| --- | --- | --- |
+| 组合版白名单 13 类，独立版 14 类；组合版丢弃 Snell，纯 Snell 机场/VPS 无法生成 | 组合版只补 snell，统一 14 类已支持范围；不加入 endpoint/Tor/已移除协议 | 全 14 类协议与分池、Snell v4/v6、顶层改名仍识别 VPS；两版本完整核心检查 |
+| 官方 Sub-Store 为 SS/Snell + ShadowTLS 生成无 server 包装节点，当前两脚本拒绝，但原始转换结果能通过两版核心 check | 只允许这两类无 server 节点委托给存在且有效的 ShadowTLS 出站；普通缺失/空/错误 server 仍失败，依赖/循环校验保留 | 六模板官方快照、direct/错误类型/缺失 helper/循环负例，完整配置 check |
+| 辅助 ShadowTLS 出站会进入手动/自动池，单独选用绕开 SS/Snell/VLESS 协议层；官方 shadowtls DialContext 使用自身服务器且不处理任意代理目标 | 被引用的 ShadowTLS hop 保留在 outbounds，但不作为独立策略候选；不改变测速周期 | 六模板确认辅助引用保留、策略池只含代理根节点；未被引用的显式 ShadowTLS 出站仍按原白名单保留 |
+| 组合处理器重命名会改变生成的 helper 标签及根节点 detour，使三种包装根节点误归机场 | 仅在 VPS 来源比较时，把无后续 detour 的 ShadowTLS 物理 hop 按完整配置比较；不修改实际 detour，不放宽去重/歧义/循环检测，不按 IP 猜测 | 用官方转换器对组合侧先改名后转换，复现 SS/Snell/VLESS 包装节点误分池；不同代理密码即使共用物理 hop 仍分池 |
+
+最终 14 项新回归在基线脚本上 12 失败/2 通过，修复后全部通过；原 51 项回归保留。中间单独复现过“辅助出站误入池”六模板全部失败与“集合改名误分池”失败，未通过删功能或放宽断言处理。
+
+### 真实转换覆盖与界限
+
+已执行官方 Sub-Store **2.42.6** 发布的 proxy-utils.esm.mjs：SHA256 `599ed6ae6570c17939282f2f2a6fa28b204fdc1fd36faf6ae9b534588f26c80f`，源码提交 `1f0318bc6feb46fbe204836f32ca7acab37ea67e`。未改动 parser/producer；在无 process 的 VM 中用内存 QX 存储宿主，禁止网络/外部 import。输入为人工构造、保留地址/示例域名、fixture-only 密码和零填充测试 key。真实执行 parse → produce('sing-box', 'external', include-unsupported-proxy=false)，捕获原始 JSON 字符串与 endpoints 分离结果，不以手写 sing-box 节点冒充真实转换。
+
+覆盖：Snell 5→4 / 6 字段、SS/Snell/VLESS 的 ShadowTLS 多出站、WS header 字符串/数组与 early-data path、Reality/uTLS、IPv6、WireGuard endpoint 隔离、组合前置改名、JSON 字符串/对象与 $files 入口、API 请求参数。官方 [producer](https://github.com/sub-store-org/Sub-Store/blob/1f0318bc6feb46fbe204836f32ca7acab37ea67e/backend/src/core/proxy-utils/producers/sing-box.js)、[produceArtifact 调用链](https://github.com/sub-store-org/Sub-Store/blob/1f0318bc6feb46fbe204836f32ca7acab37ea67e/backend/src/restful/sync.js) 与 1.14.2 [registry](https://github.com/SagerNet/sing-box/blob/v1.14.2/include/registry.go)、[QUIC registry](https://github.com/SagerNet/sing-box/blob/v1.14.2/include/quic.go) 已核对。
+
+CI 只消费固定快照，不增加实时 Sub-Store 服务/下载依赖；可用 scripts/capture-substore-fixture.mjs 和同一官方归档离线重生成。**不是用户真实后端端到端验收，也未验证 Snell/ShadowTLS/Reality 与真实远端的握手/吞吐**。旧版或未来 Sub-Store、任意用户脚本/自定义字段、多跳 helper 的改名及两入口不同认证/TLS 配置不在自动兼容承诺内；来源比较仍要求相同的完整协议配置，未知情况不按服务器 IP 猜来源。
+
+### Bootstrap 与平台复核
+
+节点 bootstrap 仍由显式单 transport 解析；本轮没有改 domain_resolver。原五组核心套接字故障测试全部保留，其中覆盖六模板主 DNS 故障→域名节点失败而 QQ 备用直连、主 DNS 原地恢复及 IP 节点独立性。没有证明更可靠、无回环且跨客户端的替代方案，因此保留单点限制；业务 DNS 主备不能替代 bootstrap 主备。
+
+核对两版固定文档：SFM/SFA features 完全一致；1.14.3 TUN 文档澄清 auto_route 关闭时 DNS 默认模式为 disabled，但本仓库 TUN 已显式 dns_mode=hijack 且 auto_route=true，不依赖该默认值，不需改配置。Windows strict_route 仍会限制非 TUN 的 53 端口；SFM/SFA 不实现 strict_route，不得将该字段当成这些客户端的验收依据。未加入 Linux bypass/auto_redirect。
+
+实机待验收：Windows 多网卡/WFP/VirtualBox、休眠恢复、LAN IP/域名；SFM NetworkExtension 权限、本地网络权限、睡眠/换网/其他 VPN；SFA VpnService 与按应用覆写、始终开启 VPN/阻止未使用 VPN 的连接、厂商后台限制、Wi-Fi/移动切换。三个平台均需实际 QQ 连续播放/换歌、节点失效时新建直连、IPv4/IPv6 路径检查。CI 核心 check 是字段/引用验证；loopback 集成没有建立真实系统 TUN，不能当作这些设备项目已通过。
+
+### 改动与回滚
+
+生产只改 inject-nodes.js / inject-vps-standalone.js 的上述注入与候选池逻辑。tests/substore.test.mjs、substore-fixture.mjs、fixtures/*、scripts/capture-substore-fixture.mjs 增加固定转换捕获与回归；core-check.mjs 由 15 增至 23 份有效完整配置。README、VPS README、VALIDATION 与本记录更新。原 11 种正常生成输出逐项比较一致，所有 JSON 与网络参数原样保留。
+
+新网络选择行为仅影响之前被丢弃的 Snell、无法注入的包装节点，以及误选的辅助 hop/误分池的包装节点；上表列出依据与回归。回滚：revert 本轮 PR，或模板与注入脚本 URL 同时固定到 `2c864da5eeb4522cb6d64af93db0844b516f8145`，刷新缓存、重新生成/导入；保留此前生成配置可直接回切。旧版组合 Snell/ShadowTLS 仍有本轮已证明的问题，不能把回滚等同于修复。
+
+
 ## 2026-10-20 小范围复审（基线 ec00943）
 
 本轮保持生产目标 **1.14.2**。六份 JSON、inject-nodes.js、八组/分池、IPv4/IPv6、7890/9090、GitHub/QQ/AI、DNS 主备均未更改。不调整 MTU、栈或系统路由。

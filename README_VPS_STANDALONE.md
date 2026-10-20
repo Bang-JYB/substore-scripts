@@ -48,7 +48,8 @@ noTUN 模板本身没有 TUN，无需另外加 mode。用桌面 TUN 模板加 `m
 - DNS 保留 A/AAAA。直连阿里失败才切换腾讯；国外 Google 失败才切换同一代理组内的 Cloudflare。NXDOMAIN/NODATA 不触发备用；国内两个 DNS 都失败不会改走海外节点。local DNS 处理局域网域名。
 - 节点服务器 bootstrap 仍是显式直连解析；它与应用 DNS 备用不是同一层。整个应用还可能使用未收录服务、自带 DNS 或已经建立的 IPv6 连接，不能保证其所有请求都不依赖节点。
 - 两个策略组和节点池保留；默认选择 VPS自动，手动固定节点不会因测速而被重新选择。测速是连通性/延迟测试，不能代表下载带宽。切换默认不主动中断既有连接。
-- 保留协议、TLS/SNI、服务器地址与认证字段；节点按完整配置去重。支持类型缺少 server、原始名称冲突、依赖缺失、direct 名称歧义、detour 自引用或循环都会报错，不静默改指向。
+- 保留协议、TLS/SNI、服务器地址与认证字段；节点按完整配置去重。支持类型缺少 server（SS/Snell 的有效 ShadowTLS 包装例外）、原始名称冲突、依赖缺失、direct 名称歧义、detour 自引用或循环都会报错，不静默改指向。
+- 被引用的 ShadowTLS 辅助出站保留供 detour 使用，但不进入手动/自动选择池；不改变测速周期。
 - 不新增 UDP 443 限制。已有 127.0.0.1:9090 本地管理接口不变；不能与另一份同端口配置同时启动。
 - 远程规则仍走 VPS 并每 7 天更新；现在包含 geosite-cn/private、geoip-cn、Apple、Microsoft、GitHub、AI、foreign。首次运行无缓存/种子且所有节点不可用时仍不能初始化。
 
@@ -64,5 +65,5 @@ python scripts/prepare-rule-seeds.py --config config_vps_standalone.json --outpu
 
 刷新 Sub-Store 模板和脚本的远程缓存，重新预览/保存/更新客户端，然后停止并启动服务。
 [VALIDATION.md](VALIDATION.md) 记录完整配置检查、DNS 故障和缓存恢复测试；这些不等于真实设备播放稳定性验收。
-本轮小修回滚：将模板和注入脚本 URL 中 `/main/` 同时换为 `/ec00943bb5ef91a5b9f74dfe4350807b673fb46e/`，再重新生成/导入；该版本仍有 Android + mixed 入站删空问题，Android 保持默认 mode=tun。更早一轮回滚见 AUDIT.md。
+本轮小修回滚：将模板和注入脚本 URL 中 `/main/` 同时换为 `/2c864da5eeb4522cb6d64af93db0844b516f8145/`，再重新生成/导入；该版本仍有本轮已证明的 ShadowTLS 包装兼容问题。更早一轮回滚见 AUDIT.md。
 不要公开真实节点配置、订阅密钥或 Sub-Store 私有分享链接；仓库测试只使用保留地址和虚构认证。

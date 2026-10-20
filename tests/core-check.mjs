@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {templates,generate,node} from './helpers.mjs';
+import {captured,fromSubstore} from './substore-fixture.mjs';
 const binary=process.env.SING_BOX;
 const expected=process.env.SING_BOX_VERSION??'1.14.2';
 if(!['1.14.2','1.14.3'].includes(expected))throw Error('Unsupported validation version: '+expected);
@@ -48,5 +49,21 @@ try{
  const dest=path.join(dir,`${n++}.json`);fs.writeFileSync(dest,JSON.stringify(all));
  execFileSync(binary,['check','-c',dest],{stdio:'pipe'});
  console.log('PASS standalone all 14 allowed protocols');
+ const combined=await generate('config_tun.json',[node('独立机场','192.0.2.32'),...standaloneProxies],standaloneProxies);
+ assert.deepEqual(combined.outbounds.find(x=>x.tag==='自动选择').outbounds,['独立机场']);
+ assert.ok(combined.outbounds.find(x=>x.tag==='VPS-自动').outbounds.includes('Snell'));
+ const combinedFile=path.join(dir,`${n++}.json`);fs.writeFileSync(combinedFile,JSON.stringify(combined));
+ execFileSync(binary,['check','-c',combinedFile],{stdio:'pipe'});
+ console.log('PASS combined all 14 allowed protocols with independent pools');
+ for(const file of templates){
+  const {config}=await fromSubstore(file,{useFiles:true});
+  const dest=path.join(dir,`${n++}.json`);fs.writeFileSync(dest,JSON.stringify(config));
+  execFileSync(binary,['check','-c',dest],{stdio:'pipe'});
+  console.log('PASS official Sub-Store capture '+file);
+ }
+ const renamed=await fromSubstore('config_tun.json',{artifacts:{...captured,combined:captured.renamedCombined}});
+ const renamedFile=path.join(dir,`${n++}.json`);fs.writeFileSync(renamedFile,JSON.stringify(renamed.config));
+ execFileSync(binary,['check','-c',renamedFile],{stdio:'pipe'});
+ console.log('PASS official Sub-Store collection rename with ShadowTLS dependencies');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
 console.log(`${n} complete generated configurations checked with official ${expected}.`);

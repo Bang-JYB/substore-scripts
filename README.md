@@ -24,7 +24,7 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 保留八个策略组：`节点选择`、`自动选择`、`VPS`、`VPS-自动`、`AI工具`、`漏网之鱼`、`🎯 全球直连`、`GLOBAL`。
 `自动选择`只测试机场节点，`VPS-自动`只测试 VPS；AI 默认 VPS；香港保留，英国/台湾、信息节点和 IPv6 地址节点按原规则过滤。模板与注入后节点均固定 IPv4。
 
-脚本通过节点完整配置（只忽略最外层 tag）识别 VPS 来源、去重并保留依赖别名。**相同原始名称对应不同配置时停止生成**，请先在订阅里重命名；不能猜测 detour 应指向哪一个节点。自引用、循环、缺失/被过滤的依赖也会停止生成。来源节点名 `direct` 与内置 direct 依赖冲突时同样报错。没有 detour 的重名节点也先要求更名，避免后续新增链式节点时悄悄改变语义。
+两份脚本统一支持 1.14.2 的 14 类代理类型（含 Snell），范围见独立版说明。去重仍按节点完整配置（只忽略最外层 tag）并保留依赖别名；VPS 来源比较会对无后续 detour 的 ShadowTLS 物理 hop 按完整配置归一，允许组合前置改名，不按 IP 猜测来源。Sub-Store 生成的 SS/Snell 无 server 包装节点必须依赖有效 ShadowTLS 出站；被引用的辅助 hop 保留但不作为测速/手动候选。**相同原始名称对应不同配置时停止生成**，请先在订阅里重命名；不能猜测 detour 应指向哪一个节点。自引用、循环、缺失/被过滤的依赖也会停止生成。来源节点名 `direct` 与内置 direct 依赖冲突时同样报错。没有 detour 的重名节点也先要求更名，避免后续新增链式节点时悄悄改变语义。
 
 单订阅版见 [README_VPS_STANDALONE.md](README_VPS_STANDALONE.md)，不需要机场或 YBsSB2。
 
@@ -96,10 +96,10 @@ npm run test:core
 python tests/runtime.py
 ```
 
-Windows PowerShell 使用 `$env:SING_BOX="C:\\完整路径\\sing-box.exe"`；bash 使用 `export SING_BOX=/完整路径/sing-box`。下载器固定官方 1.14.2 并校验已锁定的 release SHA256。
-GitHub Actions 对 Windows/macOS/Linux 做单元回归和 15 份完整生成配置校验，在 Linux 用本地 DNS/SOCKS/HTTP 故障夹具验证超时、失败备用、节点失效、FakeIP、规则冷启动/种子/缓存/更新失败。它不替代三个系统的实机 TUN、QQ 音乐播放和网络运营商测试。详见 [VALIDATION.md](VALIDATION.md) 和 [AUDIT.md](AUDIT.md)。
+Windows PowerShell 使用 `$env:SING_BOX="C:\\完整路径\\sing-box.exe"`；bash 使用 `export SING_BOX=/完整路径/sing-box`。下载器默认官方 1.14.2，显式 SING_BOX_VERSION=1.14.3 可检查兼容性；两版均校验已锁定的 release SHA256，不默认升级生产目标。
+GitHub Actions 对 Windows/macOS/Linux × 1.14.2/1.14.3 做单元回归和每任务 23 份完整生成配置校验，在 Linux 用本地 DNS/SOCKS/HTTP 故障夹具验证超时、失败备用、节点失效、FakeIP、规则冷启动/种子/缓存/更新失败。它不替代三个系统的实机 TUN、QQ 音乐播放和网络运营商测试。详见 [VALIDATION.md](VALIDATION.md) 和 [AUDIT.md](AUDIT.md)。
 
-快速回滚：把所用模板和对应注入脚本 URL 中的 `/main/` **同时**替换为 `/7a72e9f56637a50cbf89a6c0a32df8cb1e7c7c26/`，刷新 Sub-Store 缓存并重新生成/导入。不要只回滚脚本却保留另一版本模板。此基线仍含本文已修复的问题，仅用于故障对照。
+本轮快速回滚：把所用模板和对应注入脚本 URL 中的 `/main/` **同时**替换为 `/2c864da5eeb4522cb6d64af93db0844b516f8145/`，刷新 Sub-Store 缓存并重新生成/导入。不要只回滚脚本却保留另一版本模板。此基线仍含本文已修复的问题，仅用于故障对照。
 
 ## 官方依据（固定版本）
 
