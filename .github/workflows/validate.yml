@@ -57,3 +57,6 @@ jobs:
       - name: VPS policy cold and warm cache A/B (synthetic network)
         if: runner.os == 'Linux'
         run: python tests/vps-performance.py
+      - name: Optional minimal recovery DNS and real HY2/TUIC loopback
+        if: runner.os == 'Linux'
+        run: sudo --preserve-env=SING_BOX,SING_BOX_VERSION "$(command -v python)" tests/minimal-runtime.py
