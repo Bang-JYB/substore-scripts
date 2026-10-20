@@ -421,6 +421,15 @@
         "outbound": "VPS选择"
       },
       {
+        "rule_set": [
+          "geosite-github",
+          "geosite-ai"
+        ],
+        "network": "udp",
+        "port": 443,
+        "action": "reject"
+      },
+      {
         "rule_set": "geosite-github",
         "outbound": "VPS选择"
       },
@@ -460,6 +469,12 @@
       },
       {
         "rule_set": "geosite-foreign",
+        "network": "udp",
+        "port": 443,
+        "action": "reject"
+      },
+      {
+        "rule_set": "geosite-foreign",
         "outbound": "VPS选择"
       },
       {
@@ -472,6 +487,11 @@
       {
         "rule_set": "geoip-cn",
         "outbound": "direct"
+      },
+      {
+        "network": "udp",
+        "port": 443,
+        "action": "reject"
       }
     ],
     "final": "VPS选择",
