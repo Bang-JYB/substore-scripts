@@ -70,18 +70,10 @@
         "server": "fakeip"
       },
       {
-        "domain_suffix": [
-          "qq.com",
-          "qqmusic.com",
-          "gtimg.com",
-          "gtimg.cn",
-          "qpic.cn",
-          "qlogo.cn"
+        "rule_set": [
+          "geosite-github",
+          "geosite-ai"
         ],
-        "server": "ali"
-      },
-      {
-        "rule_set": "geosite-github",
         "server": "google"
       },
       {
@@ -256,19 +248,12 @@
         "outbound": "GLOBAL"
       },
       {
-        "domain_suffix": [
-          "qq.com",
-          "qqmusic.com",
-          "gtimg.com",
-          "gtimg.cn",
-          "qpic.cn",
-          "qlogo.cn"
-        ],
-        "outbound": "direct"
-      },
-      {
         "rule_set": "geosite-github",
         "outbound": "节点选择"
+      },
+      {
+        "rule_set": "geosite-ai",
+        "outbound": "AI工具"
       },
       {
         "rule_set": [
@@ -280,10 +265,6 @@
       {
         "rule_set": "geosite-private",
         "outbound": "direct"
-      },
-      {
-        "rule_set": "geosite-ai",
-        "outbound": "AI工具"
       },
       {
         "rule_set": [
