@@ -93,7 +93,7 @@ class World:
   answer=b''
   if not failure and qt in [1,28]:
    if role in ['proxy','proxy-backup']:ip='8.8.8.8' if qt==1 else '2001:4860:4860::8888'
-   elif name=='node.bootstrap.invalid' or name.endswith(('.qq.com','.lan')) or name in ['office.com','apple.com','baidu.com']:ip='127.0.0.1' if qt==1 else '::1'
+   elif name=='node.bootstrap.invalid' or name.endswith(('.baidu.com','.lan')) or name in ['office.com','apple.com','baidu.com']:ip='127.0.0.1' if qt==1 else '::1'
    else:ip=self.unknown_ip if qt==1 else '2400:3200::1'
    packed=ipaddress.ip_address(ip).packed
    answer=b'\xc0\x0c'+struct.pack('!HHIH',qt,1,30,len(packed))+packed
@@ -198,16 +198,16 @@ class RuntimeTests(unittest.TestCase):
   for name in sorted(p.name for p in (ROOT/'.test-output/generated').glob('*.json')):
    with self.subTest(template=name):
     c=self.core(name);self.w.available=False
-    self.assertEqual(c.dns('healthy.qq.com'),(0,'127.0.0.1'));self.assertEqual(self.count('backup','healthy.qq.com'),0)
-    self.assertEqual(c.dns('ipv6.qq.com',28),(0,'::1') if name.startswith('config_vps_') else (0,None))
-    self.w.failure['primary']='servfail';self.assertEqual(c.dns('fallback.qq.com'),(0,'127.0.0.1'))
-    self.assertGreater(self.count('backup','fallback.qq.com'),0)
-    self.assertIn('direct-ok',c.http('http-fallback.qq.com'))
-    self.w.failure['primary']='timeout';self.assertEqual(c.dns('timeout.qq.com'),(0,'127.0.0.1'))
-    self.w.failure['primary']='nxdomain';self.assertEqual(c.dns('negative.qq.com'),(3,None));self.assertEqual(self.count('backup','negative.qq.com'),0)
-    self.w.failure['primary']='nodata';self.assertEqual(c.dns('nodata.qq.com'),(0,None));self.assertEqual(self.count('backup','nodata.qq.com'),0)
-    self.w.failure.update(primary='servfail',backup='servfail');self.assertNotEqual(c.dns('both-down.qq.com'),(0,'127.0.0.1'))
-    self.assertEqual(self.count('proxy','both-down.qq.com'),0);self.assertEqual(self.count('proxy-backup','both-down.qq.com'),0)
+    self.assertEqual(c.dns('healthy.baidu.com'),(0,'127.0.0.1'));self.assertEqual(self.count('backup','healthy.baidu.com'),0)
+    self.assertEqual(c.dns('ipv6.baidu.com',28),(0,'::1') if name.startswith('config_vps_') else (0,None))
+    self.w.failure['primary']='servfail';self.assertEqual(c.dns('fallback.baidu.com'),(0,'127.0.0.1'))
+    self.assertGreater(self.count('backup','fallback.baidu.com'),0)
+    self.assertIn('direct-ok',c.http('http-fallback.baidu.com'))
+    self.w.failure['primary']='timeout';self.assertEqual(c.dns('timeout.baidu.com'),(0,'127.0.0.1'))
+    self.w.failure['primary']='nxdomain';self.assertEqual(c.dns('negative.baidu.com'),(3,None));self.assertEqual(self.count('backup','negative.baidu.com'),0)
+    self.w.failure['primary']='nodata';self.assertEqual(c.dns('nodata.baidu.com'),(0,None));self.assertEqual(self.count('backup','nodata.baidu.com'),0)
+    self.w.failure.update(primary='servfail',backup='servfail');self.assertNotEqual(c.dns('both-down.baidu.com'),(0,'127.0.0.1'))
+    self.assertEqual(self.count('proxy','both-down.baidu.com'),0);self.assertEqual(self.count('proxy-backup','both-down.baidu.com'),0)
     self.w.failure.clear();self.assertEqual(c.dns('not-listed.example'),(0,'223.5.5.5'))
     self.w.failure['primary']='servfail';self.assertEqual(c.dns('not-listed-backup.example'),(0,'223.5.5.5'))
     c.mode('Global');self.assertEqual(c.dns('nas.lan'),(0,'127.0.0.1'));self.assertIn('direct-ok',c.http('nas.lan'))
@@ -220,8 +220,8 @@ class RuntimeTests(unittest.TestCase):
      self.assertEqual(c.dns(domain),(0,'8.8.8.8'));self.assertGreater(self.count('proxy-backup',domain),0);self.assertEqual(self.count('primary',domain),0)
      self.assertIn('proxy-ok',c.http(domain))
     if name.startswith('config_vps_'):
-     c.mode('Global');self.assertEqual(c.dns('global.qq.com'),(0,'8.8.8.8'));self.assertGreater(self.count('proxy-backup','global.qq.com'),0);c.mode('Rule')
-    self.w.available=False;self.w.failure.clear();self.assertIn('direct-ok',c.http('outage.qq.com'));c.stop();self.w.available=True
+     c.mode('Global');self.assertEqual(c.dns('global.baidu.com'),(0,'8.8.8.8'));self.assertGreater(self.count('proxy-backup','global.baidu.com'),0);c.mode('Rule')
+    self.w.available=False;self.w.failure.clear();self.assertIn('direct-ok',c.http('outage.baidu.com'));c.stop();self.w.available=True
  def test_fakeip_is_resolved_before_direct_fallback(self):
   c=self.core('config_tun.json');self.w.available=False;self.w.unknown_ip='8.8.8.8'
   rc,fake=c.dns('dynamic-unknown.example');self.assertEqual(rc,0);self.assertIn(ipaddress.ip_address(fake),ipaddress.ip_network('198.19.0.0/16'))
@@ -242,8 +242,8 @@ class RuntimeTests(unittest.TestCase):
     self.assertEqual(self.count('proxy','node.bootstrap.invalid'),0)
     self.assertEqual(self.count('proxy-backup','node.bootstrap.invalid'),0)
     self.assertFalse(self.w.nodes)
-    self.assertIn('direct-ok',c.http('bootstrap-outage.qq.com'))
-    self.assertGreater(self.count('backup','bootstrap-outage.qq.com'),0)
+    self.assertIn('direct-ok',c.http('bootstrap-outage.baidu.com'))
+    self.assertGreater(self.count('backup','bootstrap-outage.baidu.com'),0)
     # Recovery is in-process; no DNS loop, restart or persistent cache deletion.
     self.w.failure.clear();self.assertIn('proxy-ok',c.http('github.com'));c.stop()
     # An IP-literal node does not need this bootstrap resolver.
@@ -258,13 +258,13 @@ class RuntimeTests(unittest.TestCase):
     self.w.available=False;c=Core(self.w,name,self.tmp,remote=True,cache=True);self.cores.append(c);c.start(expect_failure=True)
     self.assertIsNotNone(c.p.poll());self.assertIn('initial rule-set',c.logpath.read_text());c.stop()
     # Initial files keep the full remote rule definitions and allow offline startup.
-    c=self.core(name,remote=True,seeds=True,cache=True);self.assertIn('direct-ok',c.http('seed.qq.com'));time.sleep(1.3)
+    c=self.core(name,remote=True,seeds=True,cache=True);self.assertIn('direct-ok',c.http('seed.baidu.com'));time.sleep(1.3)
     self.assertIsNone(c.p.poll());self.assertIn('fetch rule-set',c.logpath.read_text());c.stop()
     # Fetch remote rules successfully to populate the actual persistent cache.
     self.w.available=True;c=self.core(name,remote=True,cache=True);time.sleep(.2);self.assertEqual(self.count('primary','rules.fixture.invalid'),0);c.stop()
     # With cache, a failed proxy/update must not discard rules or stop direct traffic.
     self.w.available=False;c=self.core(name,remote=True,cache=True);time.sleep(1.3)
-    self.assertIsNone(c.p.poll());self.assertIn('direct-ok',c.http('cached.qq.com'));c.stop();self.w.available=True
+    self.assertIsNone(c.p.poll());self.assertIn('direct-ok',c.http('cached.baidu.com'));c.stop();self.w.available=True
 
 if __name__=='__main__':
  if not BIN:raise SystemExit('Set SING_BOX to the official 1.14.2 executable')

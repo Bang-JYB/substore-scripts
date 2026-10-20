@@ -74,7 +74,8 @@ for (const raw of source.outbounds) {
   if ((typeof raw.server !== 'string' || !raw.server.trim()) && !wrapped) {
     throw new Error('代理节点缺少有效 server 服务器地址：' + String(raw.tag ?? raw.type));
   }
-  const id = identity(raw), original = String(raw.tag ?? '').trim();
+  // Keep source reference keys exact; trimming is only for the output label.
+  const id = identity(raw), original = String(raw.tag ?? '');
   if (original && originalTags.has(original) && originalTags.get(original).id !== id) {
     throw new Error('订阅中节点重名且配置不同，请先重命名：' + original);
   }
@@ -83,7 +84,7 @@ for (const raw of source.outbounds) {
     duplicates++;
     continue;
   }
-  const base = original || 'VPS节点';
+  const base = original.trim() || 'VPS节点';
   let tag = base, suffix = 2;
   while (reserved.has(tag)) tag = base + ' [' + suffix++ + ']';
   reserved.add(tag);

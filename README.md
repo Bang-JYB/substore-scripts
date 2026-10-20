@@ -24,20 +24,20 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 保留八个策略组：`节点选择`、`自动选择`、`VPS`、`VPS-自动`、`AI工具`、`漏网之鱼`、`🎯 全球直连`、`GLOBAL`。
 `自动选择`只测试机场节点，`VPS-自动`只测试 VPS；AI 默认 VPS；香港保留，英国/台湾、信息节点和 IPv6 地址节点按原规则过滤。模板与注入后节点均固定 IPv4。
 
-两份脚本统一支持 1.14.2 的 14 类代理类型（含 Snell），范围见独立版说明。去重仍按节点完整配置（只忽略最外层 tag）并保留依赖别名；VPS 来源比较会对无后续 detour 的 ShadowTLS 物理 hop 按完整配置归一，允许组合前置改名，不按 IP 猜测来源。Sub-Store 生成的 SS/Snell 无 server 包装节点必须依赖有效 ShadowTLS 出站；被引用的辅助 hop 保留但不作为测速/手动候选。**相同原始名称对应不同配置时停止生成**，请先在订阅里重命名；不能猜测 detour 应指向哪一个节点。自引用、循环、缺失/被过滤的依赖也会停止生成。来源节点名 `direct` 与内置 direct 依赖冲突时同样报错。没有 detour 的重名节点也先要求更名，避免后续新增链式节点时悄悄改变语义。
+两份脚本统一支持 1.14.2 的 14 类代理类型（含 Snell），范围见独立版说明。去重仍按节点完整配置（只忽略最外层 tag）并保留依赖别名；VPS 来源比较会对无后续 detour 的 ShadowTLS 物理 hop 按完整配置归一，允许组合前置改名，不按 IP 猜测来源。Sub-Store 生成的 SS/Snell 无 server 包装节点必须依赖有效 ShadowTLS 出站；被引用的辅助 hop 保留但不作为测速/手动候选，父节点被过滤后也不把辅助 hop 暴露为独立候选。组合版若过滤 IPv6 helper 导致断链，停止生成；独立双栈版保留有效 IPv6 链。源 tag 与 detour 现在按原始字符串精确匹配（包括前后空格），不自动 trim 猜目标；独立版只整理输出显示名，碰撞时唯一编号。**相同原始名称对应不同配置时停止生成**，请先在订阅里重命名；不能猜测 detour 应指向哪一个节点。自引用、循环、缺失/被过滤的依赖也会停止生成。来源节点名 `direct` 与内置 direct 依赖冲突时同样报错。没有 detour 的重名节点也先要求更名，避免后续新增链式节点时悄悄改变语义。
 
 单订阅版见 [README_VPS_STANDALONE.md](README_VPS_STANDALONE.md)，不需要机场或 YBsSB2。
 
 ## DNS 与故障边界
 
-- Rule 模式：局域网域名优先使用系统/本地 DNS；QQ 音乐、国内、Apple/Microsoft 使用直连 DNS。GitHub 和 AI 在 Apple/Microsoft 之前匹配，避免 GitHub、Copilot 被微软规则抢先直连。
+- Rule 模式：局域网域名优先使用系统/本地 DNS；国内、Apple/Microsoft 使用直连 DNS。QQ 音乐已撤除专用覆盖，按通用 geosite-cn/GeoIP/兜底分流，可能仍直连，不强制代理。GitHub 和 AI 在 Apple/Microsoft 之前匹配，避免 GitHub、Copilot 被微软规则抢先直连。
 - 直连业务：先查询阿里 DoH；成功的 NOERROR（包括 NODATA）或 NXDOMAIN 直接使用；超时/其他失败才切换腾讯 DoH。两者均失败时如实失败，**不借代理 DNS 来补救国内服务**。正常主 DNS 请求不会并行或串行多查备用。
 - 代理业务：Google DoH 失败才切换经同一代理组访问的 Cloudflare DoH。DNS 备用不等于节点备用，整组节点都不可用时海外服务仍无法访问。节点服务器域名仍用显式直连 bootstrap 解析，避免依赖自身代理。
 - 未收录域名：先用直连 DNS 做国内 IP/私有 IP 判断；只有主查询失败才额外使用备用做此判断。已收录的国外域名不做这一轮国内探测。
 - 组合版保留 FakeIP。对尚未命中业务规则的域名，`route.resolve` 通过 DNS 规则取得真实地址后再判断 GeoIP；不强制指定阿里，也不直接使用 FakeIP 服务器。核心 1.14.2 的内部 Lookup 自动跳过 FakeIP route。已知国外服务先匹配代理，不付出额外国内探测延迟。
 - 对域名形式的直连连接（例如 HTTP CONNECT），先通过同一 DNS 分流/备用逻辑 resolve，再交给 direct；TUN 已携带真实目标 IP 时 resolve 不额外查询。
 - Direct 模式仍整体直连；Global 模式仍整体代理，**局域网例外提前直连**。Global 下 QQ 音乐并不保证直连，请使用 Rule 模式。
-- 组合版的 UDP 443 限制只在 Rule 下对代理业务及剩余未匹配请求生效；QQ 音乐/国内/Apple/Microsoft 直连先放行。AI、GitHub、Google 等显式代理规则不能再抢先绕过限制。VPS 版维持原行为，不新增 UDP 443 限制。
+- 组合版的 UDP 443 限制只在 Rule 下对代理业务及剩余未匹配请求生效；已命中通用国内/Apple/Microsoft 直连的流量先放行。AI、GitHub、Google 等显式代理规则不能再抢先绕过限制。VPS 版维持原行为，不新增 UDP 443 限制。
 
 主查询故障时会等待超时再使用备用：国内每次上游查询上限 2 秒，代理每次 3 秒；这不是健康路径额外等待。权威 NXDOMAIN/NODATA 不因切换而变成错误的可用地址。DNS 缓存按核心 1.14.2 的 transport 自动隔离，所有模板启用持久 DNS 缓存；组合版继续保留 FakeIP 缓存。不要添加已弃用的 `independent_cache`。
 
@@ -97,9 +97,9 @@ python tests/runtime.py
 ```
 
 Windows PowerShell 使用 `$env:SING_BOX="C:\\完整路径\\sing-box.exe"`；bash 使用 `export SING_BOX=/完整路径/sing-box`。下载器默认官方 1.14.2，显式 SING_BOX_VERSION=1.14.3 可检查兼容性；两版均校验已锁定的 release SHA256，不默认升级生产目标。
-GitHub Actions 对 Windows/macOS/Linux × 1.14.2/1.14.3 做单元回归和每任务 23 份完整生成配置校验，在 Linux 用本地 DNS/SOCKS/HTTP 故障夹具验证超时、失败备用、节点失效、FakeIP、规则冷启动/种子/缓存/更新失败。它不替代三个系统的实机 TUN、QQ 音乐播放和网络运营商测试。详见 [VALIDATION.md](VALIDATION.md) 和 [AUDIT.md](AUDIT.md)。
+GitHub Actions 对 Windows/macOS/Linux × 1.14.2/1.14.3 做单元回归和每任务 27 份完整生成配置校验，在 Linux 用本地 DNS/SOCKS/HTTP 故障夹具验证超时、失败备用、节点失效、FakeIP、规则冷启动/种子/缓存/更新失败。它不替代三个系统的实机 TUN、QQ 音乐播放和网络运营商测试。详见 [VALIDATION.md](VALIDATION.md) 和 [AUDIT.md](AUDIT.md)。
 
-本轮快速回滚：把所用模板和对应注入脚本 URL 中的 `/main/` **同时**替换为 `/2c864da5eeb4522cb6d64af93db0844b516f8145/`，刷新 Sub-Store 缓存并重新生成/导入。不要只回滚脚本却保留另一版本模板。此基线仍含本文已修复的问题，仅用于故障对照。
+本轮快速回滚：把所用模板和对应注入脚本 URL 中的 `/main/` **同时**替换为 `/d54ee16043e95fa0787af40b0f1cdf09da59240e/`，刷新 Sub-Store 缓存并重新生成/导入。不要只回滚脚本却保留另一版本模板。此基线仍含本文已修复的问题，仅用于故障对照。
 
 ## 官方依据（固定版本）
 
