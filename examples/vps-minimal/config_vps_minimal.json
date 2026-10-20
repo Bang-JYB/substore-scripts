@@ -1,0 +1,261 @@
+{
+  "$schema": "https://sing-box.sagernet.org/schema.json",
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "https",
+        "tag": "vps-dns",
+        "server": "223.5.5.5"
+      },
+      {
+        "type": "https",
+        "tag": "proxy-dns",
+        "server": "8.8.8.8",
+        "detour": "VPS选择"
+      },
+      {
+        "type": "https",
+        "tag": "tx",
+        "server": "doh.pub",
+        "domain_resolver": "hosts"
+      },
+      {
+        "type": "hosts",
+        "tag": "hosts",
+        "predefined": {
+          "doh.pub": [
+            "1.12.12.21",
+            "120.53.53.53"
+          ]
+        }
+      },
+      {
+        "type": "local",
+        "tag": "local",
+        "prefer_go": true
+      },
+      {
+        "type": "https",
+        "tag": "proxy-backup",
+        "server": "1.1.1.1",
+        "detour": "VPS选择"
+      }
+    ],
+    "final": "proxy-dns",
+    "strategy": "prefer_ipv4",
+    "reverse_mapping": true,
+    "rules": [
+      {
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "domain_suffix": [
+              "lan",
+              "local",
+              "home.arpa"
+            ]
+          },
+          {
+            "domain_regex": [
+              "^[^.]+$"
+            ]
+          }
+        ],
+        "server": "local"
+      },
+      {
+        "clash_mode": "Direct",
+        "action": "evaluate",
+        "server": "vps-dns",
+        "tag": "direct-primary",
+        "timeout": "2s"
+      },
+      {
+        "match_response": "direct-primary",
+        "response_rcode": "NOERROR",
+        "action": "respond"
+      },
+      {
+        "match_response": "direct-primary",
+        "response_rcode": "NXDOMAIN",
+        "action": "respond"
+      },
+      {
+        "clash_mode": "Direct",
+        "server": "tx",
+        "timeout": "2s"
+      },
+      {
+        "action": "evaluate",
+        "server": "proxy-dns",
+        "tag": "proxy-primary",
+        "timeout": "3s"
+      },
+      {
+        "match_response": "proxy-primary",
+        "response_rcode": "NOERROR",
+        "action": "respond"
+      },
+      {
+        "match_response": "proxy-primary",
+        "response_rcode": "NXDOMAIN",
+        "action": "respond"
+      },
+      {
+        "server": "proxy-backup",
+        "timeout": "3s"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "address": [
+        "172.19.0.1/30",
+        "fdfe:dcba:9876::1/126"
+      ],
+      "auto_route": true,
+      "strict_route": true,
+      "stack": "mixed",
+      "mtu": 1400,
+      "dns_mode": "hijack"
+    },
+    {
+      "type": "mixed",
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 7890,
+      "set_system_proxy": false
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "selector",
+      "tag": "VPS选择",
+      "outbounds": [],
+      "default": "VPS自动",
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "urltest",
+      "tag": "VPS自动",
+      "outbounds": [],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "5m",
+      "tolerance": 50,
+      "interrupt_exist_connections": false
+    },
+    {
+      "type": "direct",
+      "tag": "direct",
+      "domain_resolver": {
+        "server": "vps-dns",
+        "strategy": "prefer_ipv4"
+      }
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "protocol": "dns"
+          },
+          {
+            "port": 53
+          }
+        ],
+        "action": "hijack-dns"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
+      },
+      {
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "domain_suffix": [
+              "lan",
+              "local",
+              "home.arpa"
+            ]
+          },
+          {
+            "domain_regex": [
+              "^[^.]+$"
+            ]
+          }
+        ],
+        "action": "resolve"
+      },
+      {
+        "type": "logical",
+        "mode": "or",
+        "rules": [
+          {
+            "domain_suffix": [
+              "lan",
+              "local",
+              "home.arpa"
+            ]
+          },
+          {
+            "domain_regex": [
+              "^[^.]+$"
+            ]
+          }
+        ],
+        "outbound": "direct"
+      },
+      {
+        "clash_mode": "Direct",
+        "action": "resolve"
+      },
+      {
+        "clash_mode": "Direct",
+        "outbound": "direct"
+      },
+      {
+        "clash_mode": "Global",
+        "outbound": "VPS选择"
+      },
+      {
+        "network": "udp",
+        "port": 443,
+        "action": "reject"
+      }
+    ],
+    "final": "VPS选择",
+    "auto_detect_interface": true,
+    "default_domain_resolver": {
+      "server": "vps-dns",
+      "strategy": "prefer_ipv4"
+    },
+    "rule_set": []
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "cache-vps-minimal.db",
+      "cache_id": "vps-minimal-v1",
+      "store_dns": true
+    },
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "default_mode": "Rule"
+    }
+  }
+}

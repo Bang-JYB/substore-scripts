@@ -82,5 +82,13 @@ try{
   const dest=path.join(dir,`${n++}.json`);fs.writeFileSync(dest,JSON.stringify(config));
   execFileSync(binary,['check','-c',dest],{stdio:'pipe'});console.log('PASS dual-stack IPv6 helper '+type+'; combo rejects broken chain');
  }
+ // Optional rule-free recovery profile; original 27 complete checks stay intact.
+ const minimal=JSON.parse(fs.readFileSync(path.join('examples','vps-minimal','config_vps_minimal.json')));
+ for(const args of [{},{mode:'mixed'}]){
+  const config=await generate('config_vps_standalone.json',[],standaloneProxies,args,undefined,minimal);
+  const dest=path.join(dir,`${n++}.json`);fs.writeFileSync(dest,JSON.stringify(config));
+  execFileSync(binary,['check','-c',dest],{stdio:'pipe'});
+  console.log('PASS optional minimal recovery '+JSON.stringify(args));
+ }
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
 console.log(`${n} complete generated configurations checked with official ${expected}.`);
