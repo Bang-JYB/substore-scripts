@@ -4,14 +4,14 @@ Not a Guangzhou ISP, real VPS, TLS/DoH throughput or OS TUN benchmark.
 No timing thresholds: query counts, routing and recovery are correctness gates.
 The rejected resolve-removal candidate exists in memory only, never production.
 """
-import collections, ipaddress, json, os, platform, socket, socketserver, statistics, struct
+import collections, hashlib, ipaddress, json, os, platform, socket, socketserver, statistics, struct
 import subprocess, tempfile, threading, time
 from pathlib import Path
 from runtime import BIN, Core, ROOT, World, address, recv_exact
 
 BASELINE=ROOT/'tests/fixtures/vps-7a72e9f-policy.json'
 DELAYS={'primary':.040,'backup':.040,'proxy':.080,'proxy-backup':.080,'local':.005}
-VARIANTS=['7a72e9f-policy','0325468-policy','candidate-without-direct-resolve']
+VARIANTS=['7a72e9f-policy','current-policy','candidate-without-direct-resolve']
 
 def question(packet):
  i=12;labels=[]
@@ -149,6 +149,10 @@ def run(samples):
           return {'rcode':rc,'ip':ip,'result':'dns'}
          row=measure(world,variant,case+'-dns-'+str(qt),phase,sample,host,query)
          assert row['rcode']==0 and row['ip'],row
+         expected=('127.0.0.1' if qt==1 else '::1') if case=='domestic' else \
+                  ('223.5.5.5' if qt==1 else '2400:3200::1') if case=='unknown-cn' else \
+                  ('8.8.8.8' if qt==1 else '2001:4860:4860::8888')
+         assert row['ip']==expected,row
          rows.append(row);time.sleep(.020)  # allow asynchronous cache publication, outside measurement
      world.unknown_ip='8.8.8.8'
      for case,domain,expected in [('domestic','baidu.com','direct'),
@@ -177,10 +181,15 @@ def run(samples):
      world.failure['primary']='servfail'
      host='failure.baidu.com'
      row=measure(world,variant,'primary-failure-http','cold',0,host,lambda:request_first_byte(core,host))
-     assert row['result']==('failed' if variant!='0325468-policy' else 'direct'),row
-     if variant=='0325468-policy':assert row['queries'].get('backup',0)>0,row
+     assert row['result']==('failed' if variant!='current-policy' else 'direct'),row
+     if variant=='current-policy':assert row['queries'].get('backup',0)>0,row
      if variant=='candidate-without-direct-resolve':assert not row['queries'].get('backup',0),row
      rows.append(row);world.failure.clear()
+     if variant=='current-policy':
+      world.failure['primary']='timeout';host='timeout.baidu.com'
+      row=measure(world,variant,'primary-timeout-http','cold',0,host,lambda:request_first_byte(core,host))
+      assert row['result']=='direct' and row['queries'].get('backup',0)==2,row
+      rows.append(row);world.failure.clear()
     finally:core.stop();world.failure.clear()
  finally:world.close()
  # Stable correctness gates, independent of machine speed and injected delays.
@@ -190,6 +199,7 @@ def run(samples):
    assert row['queries']==({'primary':1,'proxy':1} if row['variant']=='7a72e9f-policy' else {'proxy':1}),row
   if row['phase']=='cold' and row['case']=='domestic-http':assert row['queries']=={'primary':2},row  # A + AAAA, not duplicate resolves
  report={'core':version,'host':platform.system(),'samples':samples,
+         'current_template_sha256':hashlib.sha256((ROOT/'config_vps_standalone.json').read_bytes()).hexdigest(),
          'measurement':'real official core and loopback sockets; synthetic DNS delays; no OS TUN or real VPS',
          'dns_delay_ms':{k:v*1000 for k,v in DELAYS.items()},'rows':rows,'summary':[]}
  keys=sorted({(r['variant'],r['case'],r['phase']) for r in rows})

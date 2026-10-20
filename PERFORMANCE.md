@@ -8,6 +8,8 @@
 2. 新增国内/LAN/Direct 的显式 resolve 是否重复查 DNS？测健康主 DNS 的冷/热缓存 mixed 域名 HTTP 首包；仅在测试内删除紧邻同匹配 direct 规则的 resolve，观察是否真正减少查询和延迟。
 3. 删除上述 resolve 是否绕过业务 DNS 主备？注入主 DNS SERVFAIL，对比当前和候选的国内 HTTP 结果及备用查询。若故障恢复退化，候选不得部署。
 
+另对当前策略测一次主 DNS 丢包（timeout）后的国内 HTTP，记录实际配置 2s 备用等待；不把 SERVFAIL 的快速失败冒充超时场景。
+
 运行 `SING_BOX=/官方核心路径 SING_BOX_VERSION=1.14.2 python tests/vps-performance.py`，1.14.3 同理。原六任务矩阵保留，在两版 Linux 原运行集成之后执行测量。原 93 Node、6 Python、27 份/任务完整配置、固定 Sub-Store 转换及故障测试不删、不跳过。
 
 测量使用未修改的官方核心、真实 loopback DNS/SOCKS/HTTP 套接字；DNS 注入 primary/backup 40 ms、proxy/proxy-backup 80 ms、local 5 ms 的人工等待。每次新建 TCP 请求，记录连接至首字节 TTFB；DNS A/AAAA 分别测量，mixed 内部双栈 Lookup 则由核心按原行为执行。普通场景三个独立冷域名及相同域名热请求；GitHub/AI 优先级冲突使用固定域名，各一对冷/热请求。原始事件记录每个上游的开始/结束、类型与相对时间，便于区分串行与并行；排空后台模拟请求和缓存发布的等待不计入时间。时间只作观察，不能作为不稳定 CI 的毫秒门槛；查询路径、分流与恢复是断言。
