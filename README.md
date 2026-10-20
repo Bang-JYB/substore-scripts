@@ -37,7 +37,7 @@ https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-nodes.js
 - 组合版保留 FakeIP。对尚未命中业务规则的域名，`route.resolve` 通过 DNS 规则取得真实地址后再判断 GeoIP；不强制指定阿里，也不直接使用 FakeIP 服务器。核心 1.14.2 的内部 Lookup 自动跳过 FakeIP route。已知国外服务先匹配代理，不付出额外国内探测延迟。
 - 对域名形式的直连连接（例如 HTTP CONNECT），先通过同一 DNS 分流/备用逻辑 resolve，再交给 direct；TUN 已携带真实目标 IP 时 resolve 不额外查询。
 - Direct 模式仍整体直连；Global 模式仍整体代理，**局域网例外提前直连**。Global 下 QQ 音乐并不保证直连，请使用 Rule 模式。
-- 组合版的 UDP 443 限制只在 Rule 下对代理业务及剩余未匹配请求生效；已命中通用国内/Apple/Microsoft 直连的流量先放行。AI、GitHub、Google 等显式代理规则不能再抢先绕过限制。VPS 版维持原行为，不新增 UDP 443 限制。
+- 组合版与 VPS 独立版均在 Rule 下拒绝代理业务及剩余海外兜底的 UDP 443，作为网络兼容性保护；已命中通用国内/Apple/Microsoft/LAN 直连的流量先放行。GitHub/AI 等优先代理分类先拒绝 UDP 443，再放行 TCP 和其他 UDP。Direct/Global 仍按原模式处理，不新增这一阻断。规则只处理入站应用目标，不是服务端防火墙，不封禁 HY2/TUIC 节点自身的外层 UDP 443。范围、验证与回滚见 [UDP443_COMPATIBILITY.md](UDP443_COMPATIBILITY.md)。
 
 主查询故障时会等待超时再使用备用：国内每次上游查询上限 2 秒，代理每次 3 秒；这不是健康路径额外等待。权威 NXDOMAIN/NODATA 不因切换而变成错误的可用地址。DNS 缓存按核心 1.14.2 的 transport 自动隔离，所有模板启用持久 DNS 缓存；组合版继续保留 FakeIP 缓存。不要添加已弃用的 `independent_cache`。
 

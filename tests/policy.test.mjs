@@ -20,14 +20,14 @@ export function match(r,m){
  let yes=true;
  if(r.type==='logical')yes=r.mode==='and'?r.rules.every(s=>match(s,m)):r.rules.some(s=>match(s,m));
  if(r.domain_suffix)yes&&=list(r.domain_suffix).some(s=>m.domain===s||m.domain?.endsWith('.'+s));
- if(r.domain_regex)yes&&=list(r.domain_regex).some(s=>new RegExp(s).test(m.domain));
+ if(r.domain_regex)yes&&=typeof m.domain==='string'&&list(r.domain_regex).some(s=>new RegExp(s).test(m.domain));
  if(r.clash_mode)yes&&=r.clash_mode===m.mode;
  if(r.network)yes&&=list(r.network).includes(m.network);
  if(r.port)yes&&=list(r.port).includes(m.port);
  if(r.ip_version)yes&&=r.ip_version===m.ipVersion;
  if(r.ip_is_private)yes&&=m.private===true;
  if(r.protocol)yes&&=r.protocol===m.protocol;
- if(r.rule_set)yes&&=list(r.rule_set).some(s=>sets[s]?.(m.domain,m.ip));
+ if(r.rule_set)yes&&=list(r.rule_set).some(s=>sets[s]?.(m.domain??'',m.ip));
  return r.invert?!yes:yes;
 }
 function route(c,domain,network='tcp',port=443,mode='Rule',extra={}){
@@ -39,9 +39,9 @@ for(const f of templates)test('business routing, QUIC, LAN and GeoIP '+f,()=>{
  assert.equal(route(c,'github.com'),proxy);
  assert.equal(route(c,'copilot.microsoft.com'),v?'VPS选择':'AI工具');
  for(const d of ['apple.com','office.com','baidu.com'])assert.ok(['direct','🎯 全球直连'].includes(route(c,d)),d);
- assert.equal(route(c,'github.com','udp'),v?proxy:'reject');
- assert.equal(route(c,'google.com','udp'),v?proxy:'reject');
- assert.equal(route(c,'copilot.microsoft.com','udp'),v?'VPS选择':'reject');
+ assert.equal(route(c,'github.com','udp'),'reject');
+ assert.equal(route(c,'google.com','udp'),'reject');
+ assert.equal(route(c,'copilot.microsoft.com','udp'),'reject');
  assert.equal(route(c,'baidu.com','udp'),v?'direct':'🎯 全球直连');
  assert.equal(route(c,'nas.lan','tcp',80,'Global'),'direct');
  assert.equal(route(c,'anything','tcp',80,'Global',{private:true}),'direct');
@@ -49,6 +49,40 @@ for(const f of templates)test('business routing, QUIC, LAN and GeoIP '+f,()=>{
  const geo=c.route.rules.findIndex(r=>list(r.rule_set??[]).includes('geoip-cn'));
  assert.ok(resolve>=0&&resolve<geo,'unmatched domain must resolve real IP before GeoIP fallback');
  assert.equal(route(c,'not-listed.example','tcp',80,'Rule',{ip:'223.5.5.5'}),v?'direct':'🎯 全球直连');
+});
+for(const f of templates)test('UDP 443 compatibility preserves routing and mode boundaries '+f,()=>{
+ const c=JSON.parse(fs.readFileSync(path.join(root,f))),v=f.startsWith('config_vps_');
+ const proxy=v?'VPS选择':'节点选择',direct=v?'direct':'🎯 全球直连';
+ for(const mode of ['Rule','Direct','Global']){
+  for(const domain of ['github.com','copilot.microsoft.com','google.com','unknown-foreign.example']){
+   const target=mode==='Direct'?direct:mode==='Global'?(v?'VPS选择':'GLOBAL'):
+    domain==='copilot.microsoft.com'&&!v?'AI工具':proxy;
+   assert.equal(route(c,domain,'udp',443,mode),mode==='Rule'?'reject':target,domain+' '+mode);
+   assert.equal(route(c,domain,'tcp',443,mode),target,domain+' TCP '+mode);
+   assert.equal(route(c,domain,'udp',8443,mode),target,domain+' other UDP '+mode);
+  }
+  assert.equal(route(c,'nas.lan','udp',443,mode),'direct');
+  assert.equal(route(c,undefined,'udp',443,mode,{private:true}),'direct');
+ }
+ for(const domain of ['baidu.com','apple.com','office.com']){
+  assert.ok([direct,'direct'].includes(route(c,domain,'udp',443,'Rule')),domain);
+ }
+ for(const ip of ['8.8.8.8']){
+  assert.equal(route(c,undefined,'udp',443,'Rule',{ip}),'reject');
+  assert.equal(route(c,undefined,'tcp',443,'Rule',{ip}),c.route.final);
+  assert.equal(route(c,undefined,'udp',123,'Rule',{ip}),c.route.final);
+ }
+ assert.equal(route(c,undefined,'udp',443,'Rule',{ip:'223.5.5.5'}),direct);
+ assert.equal(c.route.rules.find(r=>match(r,{network:'udp',port:53,protocol:'dns',ipVersion:4,mode:'Rule'} )&&r.action!=='sniff')?.action,'hijack-dns');
+ const has443=r=>r.port===443||(r.rules??[]).some(has443);
+ const guards=c.route.rules.filter(r=>r.action==='reject'&&has443(r));
+ assert.equal(guards.length,v?3:5,'only the three required VPS decision points; combined guards unchanged');
+ const global=c.route.rules.findIndex(r=>r.clash_mode==='Global'&&r.outbound);
+ assert.ok(guards.every(r=>c.route.rules.indexOf(r)>global),'mode rules terminate before compatibility guards');
+ for(const args of [{ipVersion:6,ip:'2001:4860:4860::8888'},{ipVersion:4,ip:'8.8.8.8'}]){
+  assert.equal(route(c,undefined,'udp',443,'Rule',args),'reject');
+  if(v)assert.equal(route(c,undefined,'udp',8443,'Rule',args),c.route.final);
+ }
 });
 for(const f of templates)test('domestic DNS backup is wired without a proxy '+f,()=>{
  const c=JSON.parse(fs.readFileSync(path.join(root,f)));
