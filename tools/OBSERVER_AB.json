@@ -1,0 +1,90 @@
+{
+  "scope": "actual Linux loopback observer A/B; no sing-box, TLS, OS TUN, real VPS or ISP",
+  "platform": "Linux",
+  "python": "3.12.14",
+  "original_sha256": "77d58de2f38e8193784edf01225a91594d31eaafaad7e6ec365d7fb2cb7e7ca3",
+  "reviewed_sha256": "dd77529a35cdc0cc021013eeaea9ddb6ebacca33e751c350af087ddc4d2cb23f",
+  "rows": [
+    {
+      "variant": "original",
+      "repeat": 1,
+      "bytes": 67108864,
+      "curl_total_s": 0.057038,
+      "wall_s": 0.063375,
+      "observer_cpu_s": 0.034531,
+      "curl_mean_mbps": 9412.513
+    },
+    {
+      "variant": "reviewed",
+      "repeat": 1,
+      "bytes": 67108864,
+      "curl_total_s": 0.050595,
+      "wall_s": 0.061118,
+      "observer_cpu_s": 0.02387,
+      "curl_mean_mbps": 10611.146
+    },
+    {
+      "variant": "native-null-control",
+      "repeat": 1,
+      "bytes": 67108864,
+      "curl_total_s": 0.018034,
+      "wall_s": 0.02351,
+      "observer_cpu_s": 0.00079,
+      "curl_mean_mbps": 29769.93
+    },
+    {
+      "variant": "native-null-control",
+      "repeat": 2,
+      "bytes": 67108864,
+      "curl_total_s": 0.013375,
+      "wall_s": 0.019659,
+      "observer_cpu_s": 0.000837,
+      "curl_mean_mbps": 40139.881
+    },
+    {
+      "variant": "reviewed",
+      "repeat": 2,
+      "bytes": 67108864,
+      "curl_total_s": 0.051416,
+      "wall_s": 0.057495,
+      "observer_cpu_s": 0.029656,
+      "curl_mean_mbps": 10441.709
+    },
+    {
+      "variant": "original",
+      "repeat": 2,
+      "bytes": 67108864,
+      "curl_total_s": 0.033211,
+      "wall_s": 0.039174,
+      "observer_cpu_s": 0.015359,
+      "curl_mean_mbps": 16165.455
+    },
+    {
+      "variant": "original",
+      "repeat": 3,
+      "bytes": 67108864,
+      "curl_total_s": 0.031383,
+      "wall_s": 0.037158,
+      "observer_cpu_s": 0.014509,
+      "curl_mean_mbps": 17107.062
+    },
+    {
+      "variant": "reviewed",
+      "repeat": 3,
+      "bytes": 67108864,
+      "curl_total_s": 0.034914,
+      "wall_s": 0.041034,
+      "observer_cpu_s": 0.016799,
+      "curl_mean_mbps": 15376.952
+    },
+    {
+      "variant": "native-null-control",
+      "repeat": 3,
+      "bytes": 67108864,
+      "curl_total_s": 0.023688,
+      "wall_s": 0.029825,
+      "observer_cpu_s": 0.000602,
+      "curl_mean_mbps": 22664.257
+    }
+  ]
+}
