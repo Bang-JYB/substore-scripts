@@ -1,4 +1,33 @@
-# 验证记录（2026-10-04）
+# 验证记录
+
+## 即时设计直连与 VPS UDP 443（2026-10-30）
+
+基线：main `3b2607b111e74d9f3d31577902e75647f757a58f`。独立分支 `fix/jsdesign-direct-20261030`；不自动合并。
+
+### 范围与证据
+
+- 用户要求即时设计直连，并为 VPS 独立版增加 UDP 443 阻断。这是明确的分流变更；未声称已复现或解决用户设备的慢速原因。
+- 实际读取官网 https://js.design/ 、生产常量 https://js.design/constant.js 和编辑器入口 https://js.design/jsdesign 。生产常量使用 `/backend`、`img.js.design`、`data.js.design`；编辑器还引用 `ds.js.design`、`download.js.design`。一条 `domain_suffix: ["js.design"]` 覆盖根域名和全部子域名，无须逐个列举。
+- 未将外链产品、开发环境、统计平台或共享 CDN 整段直连。编辑器入口可读取，但部分 CDN JS 返回 HTTP 403；未登录客户端或读取真实文件，不能声称已枚举所有第三方依赖。若设备端仍有慢请求，应根据连接记录追加经过确认的专用主机，不能盲加云厂商根域名。
+- 六份模板各新增一条直连 DNS 和一条 `direct` 路由，均位于 Direct/Global 模式规则之后、分类规则之前。组合版 AAAA/HTTPS/SVCB 及 IPv6 限制不变。VPS 双栈与 `strategy` 参数不变。
+- VPS 每份再增加两条拒绝：GitHub 分类的 UDP 443 在其代理路由前拒绝；其他 UDP 443 在原国内/GeoIP 直连之后、最终代理之前拒绝。即时设计直连优先。Direct/Global 不新增拒绝；组合版原单条 UDP 443 规则及相对优先级不改。
+- 两份注入 JS、所有节点协议字段、DNS 服务器、FakeIP、缓存、route.resolve、TUN、MTU、端口及测速参数不变；未恢复 QQ/Tencent 专用覆盖。
+
+### 实际检查
+
+先运行原有检查（22 项通过、核心项明确跳过），再添加断言：未修改模板时新增直连与 VPS 拒绝断言失败。应用最小规则后，29 项全部通过、0 跳过，包含官方 sing-box 1.14.2 对六份注入虚构节点的完整配置检查。真实输出与输入哈希保存于 [checks/results/minimal-rules-20261030.log](checks/results/minimal-rules-20261030.log)。
+
+覆盖：根域名及资源/未知子域名、分类冲突、近似域名不误匹配、Direct/Global、国内/GeoIP/LAN、DNS、TCP443、UDP443/8443、VPS IPv4/IPv6、组合版 IPv6 限制，以及原有八组/分池/QQ/AI/GitHub/注入器回归。单独拒绝 GitHub 与末尾拒绝的对象、数量和位置也固定验证。
+
+上述路由匹配属于静态夹具；官方核心 `check` 验证接受完整配置。没有 Windows/macOS/Android 实机性能数据、真实 HY2/TUIC 外层 UDP443 连通/下载测试或本轮 GitHub CI 成功记录，不将其描述为已通过。
+
+### 试用与回滚
+
+PR 合并前，main 不会包含本次变更。试用时仅复制 Sub-Store 远程文件，并将六份模板中正在使用的对应模板 URL 的 `/main/` 替换为 `/fix/jsdesign-direct-20261030/`；继续使用原注入脚本及参数，刷新模板缓存，重新生成、更新客户端并重启。原生产文件保持不动。
+
+不理想时切回原文件；若以后合并，可通过独立 revert 提交撤销本 PR，不强推 main。基线 `3b2607b111e74d9f3d31577902e75647f757a58f` 保留，可用于恢复旧模板后重新生成订阅。既有 QQ 专用规则删除仍然保留。
+
+## 历史验证（2026-10-04；以下为当时结果）
 
 - 使用官方 sing-box 1.14.2 Linux amd64 发布包。
 - 三份由虚构机场/VPS节点生成的配置均通过 `sing-box check`。

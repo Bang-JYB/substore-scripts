@@ -70,6 +70,12 @@
         "server": "fakeip"
       },
       {
+        "domain_suffix": [
+          "js.design"
+        ],
+        "server": "ali"
+      },
+      {
         "rule_set": "geosite-github",
         "server": "google"
       },
@@ -248,6 +254,12 @@
       {
         "clash_mode": "Global",
         "outbound": "GLOBAL"
+      },
+      {
+        "domain_suffix": [
+          "js.design"
+        ],
+        "outbound": "direct"
       },
       {
         "rule_set": "geosite-ai",

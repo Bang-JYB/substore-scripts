@@ -1,4 +1,4 @@
-// Small, dependency-free checks for the 7a72e9f rule-only patch; no network tests.
+// Small, dependency-free checks for approved rule edits on 7a72e9f; no network tests.
 // node checks/minimal-rules.mjs --core /absolute/path/to/official/sing-box
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
@@ -12,6 +12,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const files=['config_pc.json','config_tun.json','config_android.json','config_vps_notun.json','config_vps_standalone.json','config_vps_android.json'];
 const groups=['节点选择','自动选择','VPS','VPS-自动','AI工具','漏网之鱼','🎯 全球直连','GLOBAL'];
 const qq=['qq.com','qqmusic.com','gtimg.com','gtimg.cn','qpic.cn','qlogo.cn'];
+const jsDesignRule=r=>list(r.domain_suffix).includes('js.design');
 const list=x=>x==null?[]:Array.isArray(x)?x:[x];
 const read=f=>JSON.parse(fs.readFileSync(path.join(root,f),'utf8'));
 const original=f=>execFileSync('git',['show','7a72e9f:'+f],{cwd:root});
@@ -62,14 +63,17 @@ for(const file of files){
   assert.equal(route(c,'y.qq.com'),c.route.final);
  });
  test('only the declared rule edits are permitted: '+file,()=>{
-  assert.equal(c.dns.rules.length,before.dns.rules.length-1);
-  assert.equal(c.route.rules.length,before.route.rules.length-1);
+  assert.equal(c.dns.rules.length,before.dns.rules.length);
+  assert.equal(c.route.rules.length,before.route.rules.length+(solo?2:0));
   const oldDNS=structuredClone(before.dns);
   oldDNS.rules=oldDNS.rules.filter(r=>!list(r.domain_suffix).some(x=>qq.includes(x)));
-  assert.deepEqual(c.dns,oldDNS,'DNS must equal 7a72e9f minus only the QQ override');
+  oldDNS.rules.splice(oldDNS.rules.findIndex(r=>r.clash_mode==='Global')+1,0,
+   {domain_suffix:['js.design'],server:solo?'vps-dns':'ali'});
+  assert.deepEqual(c.dns,oldDNS,'DNS must equal 7a72e9f minus QQ plus the JS Design rule');
   const scrub=config=>{
    const copy=structuredClone(config);
    for(const area of ['dns','route'])copy[area].rules=copy[area].rules.filter(r=>
+    !jsDesignRule(r)&&!(solo&&area==='route'&&r.network==='udp'&&r.port===443&&r.action==='reject')&&
     !list(r.domain_suffix).some(x=>qq.includes(x))&&
     (solo||area!=='route'||!list(r.rule_set).includes('geosite-ai')));
    return copy;
@@ -85,8 +89,53 @@ for(const file of files){
   assert.equal(route(c,'foreign.example',{sets:['geosite-foreign']}),solo?'VPS选择':'节点选择');
   assert.equal(route(c,'unlisted.example'),solo?'VPS选择':'漏网之鱼');
  });
- if(solo)test('VPS UDP and dual-stack behavior unchanged: '+file,()=>{
-  assert.equal(route(c,'github.com',{network:'udp'}),'VPS选择');
+ test('JS Design and all subdomains use direct DNS/routing without changing modes: '+file,()=>{
+  const dnsRule={domain_suffix:['js.design'],server:solo?'vps-dns':'ali'};
+  const routeRule={domain_suffix:['js.design'],outbound:'direct'};
+  assert.deepEqual(c.dns.rules.filter(jsDesignRule),[dnsRule]);
+  assert.deepEqual(c.route.rules.filter(jsDesignRule),[routeRule]);
+  for(const area of ['dns','route'])assert.equal(c[area].rules.findIndex(jsDesignRule),c[area].rules.findIndex(r=>r.clash_mode==='Global')+1);
+  for(const host of ['js.design','www.js.design','api.js.design','img.js.design','data.js.design','ds.js.design','download.js.design','new-service.js.design']){
+   // Deliberately omit the domestic set and include conflicting proxy sets.
+   for(const sets of [[],['geosite-foreign','geosite-ai','geosite-github']]){
+    assert.equal(dns(c,host,{sets} ),solo?'vps-dns':'ali');
+    for(const port of [443,8443])for(const network of ['tcp','udp'])assert.equal(route(c,host,{sets,port,network}),'direct');
+   }
+   for(const query_type of ['A',...(solo?['AAAA','HTTPS','SVCB']:[])])assert.equal(dns(c,host,{query_type}),solo?'vps-dns':'ali');
+   if(!solo){
+    assert.equal(c.dns.rules.find(r=>match(r,{domain:host,query_type:'AAAA'})).action,'predefined');
+    for(const query_type of ['HTTPS','SVCB'])assert.equal(c.dns.rules.find(r=>match(r,{domain:host,query_type})).action,'reject');
+   }
+   assert.equal(route(c,host,{ip_version:6}),solo?'direct':'reject');
+   assert.equal(route(c,host,{clash_mode:'Direct'}),solo?'direct':'🎯 全球直连');
+   assert.equal(route(c,host,{clash_mode:'Global'}),solo?'VPS选择':'GLOBAL');
+   assert.equal(dns(c,host,{clash_mode:'Global'}),solo?'proxy-dns':'fakeip');
+  }
+  for(const host of ['notjs.design','js.design.example.com','github.com','storage.googleapis.com','example.oss-cn-hangzhou.aliyuncs.com']){
+   assert.equal(match(routeRule,{domain:host}),false,'unrelated/shared host must not match');
+  }
+ });
+ if(solo)test('VPS Rule-mode proxy UDP443 blocked; direct, other UDP and dual-stack preserved: '+file,()=>{
+  assert.deepEqual(c.route.rules.filter(r=>r.network==='udp'&&r.port===443&&r.action==='reject'),[
+   {network:'udp',port:443,rule_set:'geosite-github',action:'reject'},
+   {network:'udp',port:443,action:'reject'}
+  ]);
+  assert.equal(c.route.rules.findIndex(r=>r.rule_set==='geosite-github'&&r.action==='reject')+1,
+   c.route.rules.findIndex(r=>r.rule_set==='geosite-github'&&r.outbound==='VPS选择'));
+  assert.deepEqual(c.route.rules.at(-1),{network:'udp',port:443,action:'reject'});
+  assert.equal(route(c,'github.com',{network:'udp'}),'reject');
+  for(const host of ['github.com','api.github.com','foreign.example','ai.example','unknown.example'])for(const ip_version of [4,6]){
+   assert.equal(route(c,host,{network:'udp',ip_version}),'reject');
+   assert.equal(route(c,host,{network:'tcp',ip_version}),'VPS选择');
+   assert.equal(route(c,host,{network:'udp',port:8443,ip_version}),'VPS选择');
+   for(const clash_mode of ['Direct','Global'])assert.equal(route(c,host,{network:'udp',ip_version,clash_mode}),clash_mode==='Direct'?'direct':'VPS选择');
+  }
+  for(const host of ['baidu.com','office.com','nas.lan','cn-ip.example']){
+   assert.equal(route(c,host,{network:'udp',...(host==='cn-ip.example'?{sets:['geoip-cn']}: {})}),'direct');
+  }
+  assert.equal(route(c,'8.8.8.8',{network:'udp',port:443}),'reject');
+  assert.equal(route(c,'dns.example',{network:'udp',port:53,protocol:'dns'}),'hijack-dns');
+  assert.equal(route(c,undefined,{network:'udp',private:true}),'direct');
   assert.equal(c.dns.strategy,'prefer_ipv4');
   assert.equal(route(c,'foreign.example',{network:'udp',port:8443,ip_version:6}),'VPS选择');
  });
