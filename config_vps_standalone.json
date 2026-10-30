@@ -31,6 +31,12 @@
         "server": "proxy-dns"
       },
       {
+        "domain_suffix": [
+          "js.design"
+        ],
+        "server": "vps-dns"
+      },
+      {
         "rule_set": "geosite-github",
         "server": "proxy-dns"
       },
@@ -143,6 +149,18 @@
         "outbound": "VPS选择"
       },
       {
+        "domain_suffix": [
+          "js.design"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "network": "udp",
+        "port": 443,
+        "rule_set": "geosite-github",
+        "action": "reject"
+      },
+      {
         "rule_set": "geosite-github",
         "outbound": "VPS选择"
       },
@@ -174,6 +192,11 @@
       {
         "rule_set": "geoip-cn",
         "outbound": "direct"
+      },
+      {
+        "network": "udp",
+        "port": 443,
+        "action": "reject"
       }
     ],
     "final": "VPS选择",

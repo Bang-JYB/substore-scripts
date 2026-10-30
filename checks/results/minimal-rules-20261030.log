@@ -1,0 +1,61 @@
+UTC 2026-10-30T03:16:20Z
+3b2607b111e74d9f3d31577902e75647f757a58f
+sing-box version 1.14.2
+
+Environment: go1.26.8 linux/amd64
+Tags: with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_cloudflared,with_naive_outbound,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_purego
+Revision: af6e64c3b69e6132ebaee0e1a3d24e93903f6709
+CGO: disabled
+97762f3f2f44f35e9cba13204b8dfdeace7fb4fe3c1eee19d11e645bd6a04781  config_android.json
+183e1f02c9bedae4f1b823926d5663697f7847356563c7d3db3637ce3fd583e5  config_pc.json
+602b3defbb6ecc1a433bf151428e619b34f055d68b13bde5867cc1358cfcc83d  config_tun.json
+e8db9c6099844c5cf1831928792442306d4c9f5d6b1b713e30e25a2447a3455f  config_vps_android.json
+55c2cd00dee0e7e66543375743527265769c381a61c027db5cdd2f2f9c921f3f  config_vps_notun.json
+b3d803b15feba7491b5a2a24298195389186179501740384a110db4a0d9fb8ec  config_vps_standalone.json
+a463822024ff83e219edff7dbddf3036e26b11a4cecb95562be8bcde7f35637d  inject-nodes.js
+f4ebfacc4f4d97748e3e8df821ef45d7e6e3f9ec257831381e6aed5c9d4a843d  inject-vps-standalone.js
+f09061036d318684c6525e05cb9e938471e1dec34ccdfef0ae5367df704c3024  checks/minimal-rules.mjs
+fc9c6e6ab345f045b16a0ed10d1ff28d68e8e56e7749fca30738d1406e98d7b8  /workspace/scratch/a94a373274de/singbox-core-1.14.2/sing-box-1.14.2-linux-amd64/sing-box
+CORE_OK config_pc.json
+CORE_OK config_tun.json
+CORE_OK config_android.json
+CORE_OK config_vps_notun.json
+CORE_OK config_vps_standalone.json
+CORE_OK config_vps_android.json
+✔ QQ-specific overrides removed; ordinary classification retained: config_pc.json (2.049772ms)
+✔ only the declared rule edits are permitted: config_pc.json (2.732126ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_pc.json (1.786724ms)
+✔ AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_pc.json (1.813191ms)
+✔ original single UDP443 guard and its priority limitations are explicit: config_pc.json (0.426806ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_tun.json (0.165903ms)
+✔ only the declared rule edits are permitted: config_tun.json (0.563026ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_tun.json (0.582735ms)
+✔ AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_tun.json (0.387448ms)
+✔ original single UDP443 guard and its priority limitations are explicit: config_tun.json (0.416176ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_android.json (0.250365ms)
+✔ only the declared rule edits are permitted: config_android.json (0.573412ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_android.json (0.810704ms)
+✔ AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_android.json (0.128185ms)
+✔ original single UDP443 guard and its priority limitations are explicit: config_android.json (1.192374ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_vps_notun.json (0.358171ms)
+✔ only the declared rule edits are permitted: config_vps_notun.json (1.043704ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_vps_notun.json (0.697651ms)
+✔ VPS Rule-mode proxy UDP443 blocked; direct, other UDP and dual-stack preserved: config_vps_notun.json (0.726254ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_vps_standalone.json (0.186373ms)
+✔ only the declared rule edits are permitted: config_vps_standalone.json (0.424018ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_vps_standalone.json (1.205646ms)
+✔ VPS Rule-mode proxy UDP443 blocked; direct, other UDP and dual-stack preserved: config_vps_standalone.json (0.647467ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_vps_android.json (0.152532ms)
+✔ only the declared rule edits are permitted: config_vps_android.json (0.281418ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_vps_android.json (0.952894ms)
+✔ VPS Rule-mode proxy UDP443 blocked; direct, other UDP and dual-stack preserved: config_vps_android.json (0.75736ms)
+✔ unchanged injectors preserve groups, Hong Kong, filters, pools and node protocol fields (27.066885ms)
+✔ official 1.14.2 checks all six fully injected configurations (446.161758ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 528.912599
