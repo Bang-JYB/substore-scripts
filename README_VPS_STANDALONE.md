@@ -3,13 +3,21 @@
 只读取 Sub-Store 的一份单订阅；订阅中可包含 Oracle 或任何其他厂商的多个 VPS 节点。
 不需要机场，不需要组合订阅，也不需要 YBsSB2。
 
+## 客户端到节点固定 IPv4（2026-11-04）
+
+`inject-vps-standalone.js` 将每个服务器代理出站的 `domain_resolver` 固定为 `{"server":"vps-dns","strategy":"ipv4_only"}`。只限制客户端到 VPS/CDN；域名保持原样，仅解析 A，IPv4 地址不变，IPv6 字面量过滤并报告数量。若过滤导致链式依赖缺失，停止生成，不输出断链配置；仅 AAAA 的节点域名由核心报告解析失败，不回退 IPv6。
+
+`strategy=prefer_ipv4/prefer_ipv6` 继续控制原来的业务 DNS、direct 和默认解析偏好，不再控制节点连接。没有修改六份 JSON、组合注入脚本、TLS/SNI/WS Host/Path、认证、节点名称或服务端配置。官方 1.14.4 及原 1.14.2 完整配置检查结果见 [验证记录](VALIDATION.md)。
+
+**不等于所有目标都由 VPS 自主双栈解析。** 原 `route.resolve`、客户端已经得到的 IP 和协议行为可能将目标 IP 直接交给 VPS；只有实际传递域名时，服务端才有自行解析/选择的机会。服务端的 IPv6 能力未被本次改动限制，但没有据此验证真实 VPS 出口。CDN 节点连接 IPv4 边缘，CDN 到源站由 CDN 决定。
+
 ## 即时设计直连与 UDP 443（2026-10-30）
 
 - Rule 模式：`js.design` 及全部子域名使用 `vps-dns` 和 `direct`，包括官网、编辑器、图片、数据、下载及新增子域名。不泛化匹配包含 `js` 的域名，也不将共享云厂商整段直连。
 - 两条简单拒绝规则覆盖代理业务 UDP 443：一条紧邻 GitHub 代理路由之前，另一条在国内 IP 直连兜底之后。单纯放在末尾会漏掉提前代理的 GitHub；无条件上移则会误伤国内直连。
 - 国内、LAN、即时设计的 UDP 443 继续直连；TCP 443、其他 UDP、DNS 劫持、Direct/Global 模式不变。未知公网 IP 在未命中国内 IP 规则时，UDP 443 被拒绝。
 - 不更改 HY2/TUIC 节点端口、传输或认证参数。新增规则针对进入配置的业务流量；配置检查不等于真实 QUIC 节点连通测试。
-- 两份注入脚本不变，IPv4/IPv6 优先参数仍可使用；DNS 服务器、缓存、TUN、MTU、端口和测速周期不变。
+- 该轮没有修改两份注入脚本；当前节点连接 IPv4-only 与业务优先参数的区别见上方 2026-11-04 更新。DNS 服务器、缓存、TUN、MTU、端口和测速周期不变。
 - 试用或合并更新后，刷新 Sub-Store 模板缓存、重新生成订阅、在客户端更新并停止/启动服务，再重新打开即时设计。仅更新注入脚本无法获取模板变更。真实访问速度需设备端验证。
 
 ## 文件分工
@@ -64,10 +72,10 @@ name 使用单订阅内部名称，而不是备注或文件名称；参数区单
 | 参数 | 默认值 | 用法 |
 | --- | --- | --- |
 | name | VPS | 单订阅内部名称 |
-| strategy | prefer_ipv4 | 同时保留 IPv4、IPv6，域名优先 IPv4；prefer_ipv6 则优先 IPv6 |
+| strategy | prefer_ipv4 | 业务 DNS、Direct 和默认解析保留双栈偏好；节点连接始终 IPv4-only |
 | mode | tun | TUN/VPN 模式；桌面只使用 HTTP/SOCKS 时可选 mixed |
 
-优先 IPv6：
+业务 DNS/直连优先 IPv6（节点连接仍为 IPv4）：
 
 ```text
 https://raw.githubusercontent.com/Bang-JYB/substore-scripts/main/inject-vps-standalone.js#name=VPS&strategy=prefer_ipv6
@@ -88,10 +96,10 @@ TUN 默认支持 IPv4/IPv6 地址，在桌面客户端开启 TUN，Android 使�
 - VPS自动使用 HTTPS 请求测试延迟，间隔 5 分钟、容差 50 ms；这是延迟/连通性测试，不是下载带宽测试。
 - 默认选择 VPS自动；手动选节点后不会因为自动测试而改变手动选择。
 - Rule 模式：局域网、国内域名和国内 IP 直连，其余流量通过 VPS选择。Direct 模式全部直连，Global 模式除局域网外全部走 VPS。
-- DNS 支持 A 和 AAAA，不屏蔽 IPv6；节点域名、国内域名用直连阿里 DoH，其他域名用 VPS 访问 Google DoH；Direct 模式 DNS 也直连。
+- 业务 DNS 支持 A 和 AAAA，不屏蔽 IPv6；节点域名使用直连阿里 DoH，仅取 A；国内域名保留直连阿里 DoH 的双栈策略，其他域名用 VPS 访问 Google DoH；Direct 模式业务 DNS 也直连。
 - 首次启动通过“VPS选择”代理下载上游 GitHub 的 geosite-cn、geosite-private、geoip-cn、geosite-apple、geosite-microsoft 五个规则集，随后缓存并每 7 天更新。首次启动需要配置中至少一个可用 VPS 节点。国内应用是否直连取决于其域名/IP 是否命中规则；规则未涵盖的海外服务仍走 VPS。
 - 要使用国内外分流，请将客户端模式设为 Rule／规则模式。更新配置后重启客户端和出现断线的应用，让已有连接重新建立。
-- IPv6 地址节点需要客户端网络具备可用 IPv6；不能凭 IPv6 地址自动推导 IPv4。
+- IPv6 字面量节点不进入选择/测速池；不能凭 IPv6 地址自动推导 IPv4。应提供有 A 记录的节点域名或 IPv4 地址。
 - 保留协议、TLS/SNI、服务器地址和认证字段，不会把单个 IP 节点拆成凭空生成的双栈节点。
 - 节点按配置去重；重名且配置不同、缺失链式依赖或循环依赖时停止生成，防止错误配置。
 - 只有支持的节点会进入输出；若前置订阅操作已删除 IPv6 节点，脚本无法恢复它们。
