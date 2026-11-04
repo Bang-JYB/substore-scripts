@@ -19,9 +19,14 @@
       }
     ],
     "final": "proxy-dns",
-    "strategy": "prefer_ipv4",
+    "strategy": "ipv4_only",
     "reverse_mapping": true,
     "rules": [
+      {
+        "query_type": "AAAA",
+        "action": "predefined",
+        "rcode": "NOERROR"
+      },
       {
         "clash_mode": "Direct",
         "server": "vps-dns"
@@ -115,7 +120,7 @@
       "tag": "direct",
       "domain_resolver": {
         "server": "vps-dns",
-        "strategy": "prefer_ipv4"
+        "strategy": "ipv4_only"
       }
     }
   ],
@@ -123,6 +128,10 @@
     "rules": [
       {
         "action": "sniff"
+      },
+      {
+        "ip_version": 6,
+        "action": "reject"
       },
       {
         "protocol": "dns",
@@ -195,7 +204,7 @@
     "auto_detect_interface": true,
     "default_domain_resolver": {
       "server": "vps-dns",
-      "strategy": "prefer_ipv4"
+      "strategy": "ipv4_only"
     },
     "rule_set": [
       {
@@ -267,7 +276,7 @@
       "detour": "VPS选择",
       "domain_resolver": {
         "server": "vps-dns",
-        "strategy": "prefer_ipv4"
+        "strategy": "ipv4_only"
       }
     }
   ]

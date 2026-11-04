@@ -1,13 +1,12 @@
 // Sub-Store 远程文件脚本，配合 config_vps_standalone.json。
 // 只读取单订阅；不依赖组合订阅、厂商或节点名称，不内置真实节点/凭据。
-// 节点连接固定 IPv4；strategy 仅保留原业务 DNS/直连的双栈偏好。
-// 参数：name=VPS；strategy=prefer_ipv4 或 prefer_ipv6；mode=tun 或 mixed。
+// 客户端统一 IPv4-only；旧 strategy 参数不再读取。
+// 参数：name=VPS；mode=tun 或 mixed。
 const args = typeof $arguments === 'object' && $arguments ? $arguments : {};
 const name = String(args.name ?? 'VPS').trim();
-const strategy = String(args.strategy ?? 'prefer_ipv4');
+const strategy = 'ipv4_only';
 const mode = String(args.mode ?? 'tun');
 if (!name) throw new Error('name 必须填写 Sub-Store 单订阅名称');
-if (!['prefer_ipv4', 'prefer_ipv6'].includes(strategy)) throw new Error('strategy 只能是 prefer_ipv4 或 prefer_ipv6');
 if (!['tun', 'mixed'].includes(mode)) throw new Error('mode 只能是 tun 或 mixed');
 if (typeof produceArtifact !== 'function') throw new Error('请在 Sub-Store 远程文件脚本中运行');
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -116,4 +115,4 @@ if (mode === 'mixed') config.inbounds = config.inbounds.filter(inbound => inboun
 const output = JSON.stringify(config);
 if (new TextEncoder().encode(output).length > 1024 * 1024) throw new Error('生成配置超过 1 MiB，请减少订阅节点');
 $content = output;
-console.log('[VPS 独立订阅] ' + name + '：' + nodes.length + ' 个节点，去重 ' + duplicates + '；节点连接 IPv4-only，过滤 IPv6 字面量 ' + droppedV6 + '；业务双栈 ' + strategy + '；' + mode);
+console.log('[VPS 独立订阅] ' + name + '：' + nodes.length + ' 个节点，去重 ' + duplicates + '；客户端 IPv4-only，过滤 IPv6 字面量 ' + droppedV6 + '；' + mode);

@@ -16,6 +16,16 @@ const jsDesignRule=r=>list(r.domain_suffix).includes('js.design');
 const list=x=>x==null?[]:Array.isArray(x)?x:[x];
 const read=f=>JSON.parse(fs.readFileSync(path.join(root,f),'utf8'));
 const original=f=>execFileSync('git',['show','7a72e9f:'+f],{cwd:root});
+// Exact IPv4-only delta allowed on VPS templates; all unrelated fields stay pinned.
+function vpsIPv4(c){
+ c.dns.strategy='ipv4_only';
+ c.outbounds.find(o=>o.type==='direct').domain_resolver.strategy='ipv4_only';
+ c.route.default_domain_resolver.strategy='ipv4_only';
+ for(const client of c.http_clients)client.domain_resolver.strategy='ipv4_only';
+ c.dns.rules.unshift({query_type:'AAAA',action:'predefined',rcode:'NOERROR'});
+ c.route.rules.splice(1,0,{ip_version:6,action:'reject'});
+ return c;
+}
 // Independent category fixtures, including the actual upstream AI/Microsoft overlap.
 const sets={
  'github.com':['geosite-github','geosite-microsoft','geosite-foreign'],
@@ -48,7 +58,8 @@ function dns(c,domain,extra={}){
  return c.dns.rules.find(r=>r.action!=='evaluate'&&(r.server||r.action==='predefined')&&match(r,m))?.server??c.dns.final;
 }
 for(const file of files){
- const c=read(file),before=JSON.parse(original(file)),solo=file.startsWith('config_vps_');
+ const c=read(file),solo=file.startsWith('config_vps_');
+ const before=solo?vpsIPv4(JSON.parse(original(file))):JSON.parse(original(file));
  test('QQ-specific overrides removed; ordinary classification retained: '+file,()=>{
   const visit=x=>{
    if(!x||typeof x!=='object')return;
@@ -101,12 +112,13 @@ for(const file of files){
     assert.equal(dns(c,host,{sets} ),solo?'vps-dns':'ali');
     for(const port of [443,8443])for(const network of ['tcp','udp'])assert.equal(route(c,host,{sets,port,network}),'direct');
    }
-   for(const query_type of ['A',...(solo?['AAAA','HTTPS','SVCB']:[])])assert.equal(dns(c,host,{query_type}),solo?'vps-dns':'ali');
+   for(const query_type of ['A',...(solo?['HTTPS','SVCB']:[])])assert.equal(dns(c,host,{query_type}),solo?'vps-dns':'ali');
+   assert.equal(c.dns.rules.find(r=>match(r,{domain:host,query_type:'AAAA'})).action,'predefined');
    if(!solo){
     assert.equal(c.dns.rules.find(r=>match(r,{domain:host,query_type:'AAAA'})).action,'predefined');
     for(const query_type of ['HTTPS','SVCB'])assert.equal(c.dns.rules.find(r=>match(r,{domain:host,query_type})).action,'reject');
    }
-   assert.equal(route(c,host,{ip_version:6}),solo?'direct':'reject');
+   assert.equal(route(c,host,{ip_version:6}),'reject');
    assert.equal(route(c,host,{clash_mode:'Direct'}),solo?'direct':'🎯 全球直连');
    assert.equal(route(c,host,{clash_mode:'Global'}),solo?'VPS选择':'GLOBAL');
    assert.equal(dns(c,host,{clash_mode:'Global'}),solo?'proxy-dns':'fakeip');
@@ -115,7 +127,19 @@ for(const file of files){
    assert.equal(match(routeRule,{domain:host}),false,'unrelated/shared host must not match');
   }
  });
- if(solo)test('VPS Rule-mode proxy UDP443 blocked; direct, other UDP and dual-stack preserved: '+file,()=>{
+ test('AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: '+file,()=>{
+  for(const clash_mode of ['Rule','Direct','Global'])for(const domain of ['js.design','github.com','nas.lan','2001:db8::1']){
+   const answer=c.dns.rules.find(r=>match(r,{domain,query_type:'AAAA',clash_mode}));
+   assert.deepEqual(answer,{query_type:'AAAA',action:'predefined',rcode:'NOERROR'});
+   for(const network of ['tcp','udp'])for(const port of [53,443,8443])for(const privateIP of [false,true]){
+    assert.equal(route(c,domain,{ip_version:6,network,port,clash_mode,private:privateIP}),'reject');
+   }
+  }
+  assert.equal(c.dns.strategy,'ipv4_only');
+  assert.equal(c.route.default_domain_resolver.strategy,'ipv4_only');
+  assert.equal(c.outbounds.find(o=>o.type==='direct').domain_resolver.strategy,'ipv4_only');
+ });
+ if(solo)test('VPS IPv4 UDP443 protection, direct and other UDP preserved: '+file,()=>{
   assert.deepEqual(c.route.rules.filter(r=>r.network==='udp'&&r.port===443&&r.action==='reject'),[
    {network:'udp',port:443,rule_set:'geosite-github',action:'reject'},
    {network:'udp',port:443,action:'reject'}
@@ -124,7 +148,7 @@ for(const file of files){
    c.route.rules.findIndex(r=>r.rule_set==='geosite-github'&&r.outbound==='VPS选择'));
   assert.deepEqual(c.route.rules.at(-1),{network:'udp',port:443,action:'reject'});
   assert.equal(route(c,'github.com',{network:'udp'}),'reject');
-  for(const host of ['github.com','api.github.com','foreign.example','ai.example','unknown.example'])for(const ip_version of [4,6]){
+  for(const host of ['github.com','api.github.com','foreign.example','ai.example','unknown.example'])for(const ip_version of [4]){
    assert.equal(route(c,host,{network:'udp',ip_version}),'reject');
    assert.equal(route(c,host,{network:'tcp',ip_version}),'VPS选择');
    assert.equal(route(c,host,{network:'udp',port:8443,ip_version}),'VPS选择');
@@ -136,8 +160,8 @@ for(const file of files){
   assert.equal(route(c,'8.8.8.8',{network:'udp',port:443}),'reject');
   assert.equal(route(c,'dns.example',{network:'udp',port:53,protocol:'dns'}),'hijack-dns');
   assert.equal(route(c,undefined,{network:'udp',private:true}),'direct');
-  assert.equal(c.dns.strategy,'prefer_ipv4');
-  assert.equal(route(c,'foreign.example',{network:'udp',port:8443,ip_version:6}),'VPS选择');
+  assert.equal(c.dns.strategy,'ipv4_only');
+  assert.equal(route(c,'foreign.example',{network:'udp',port:8443,ip_version:6}),'reject');
  });
  else{
   test('AI route precedes GitHub/Microsoft; DNS retains historical behavior: '+file,()=>{
@@ -187,9 +211,9 @@ const cdn={type:'vless',tag:'fixture-CDN',server:'cdn.example.com',server_port:4
 const vps=[{type:'hysteria2',tag:'fixture-HY2',server:'192.0.2.10',server_port:443,password:'fixture-only',tls},
  {type:'tuic',tag:'fixture-TUIC',server:'192.0.2.11',server_port:443,uuid:'11111111-1111-4111-8111-111111111111',password:'fixture-only',tls},node('fixture-IPv6','2001:db8::1'),cdn];
 const combined=[...airport,...vps,node('英国 UK','192.0.2.20'),node('台湾','192.0.2.21'),node('剩余流量 10GB','192.0.2.22')];
-async function generate(file,{source=vps,args={},logs=[],script}={}){
+async function generate(file,{source=vps,args={},logs=[],script,template}={}){
  const solo=file.startsWith('config_vps_');
- const ctx={$content:JSON.stringify(read(file)),$arguments:args,TextEncoder,console:{log:s=>logs.push(s)},produceArtifact:async({type})=>structuredClone({outbounds:type==='collection'?combined:source})};
+ const ctx={$content:JSON.stringify(template??read(file)),$arguments:args,TextEncoder,console:{log:s=>logs.push(s)},produceArtifact:async({type})=>structuredClone({outbounds:type==='collection'?combined:source})};
  script??=fs.readFileSync(path.join(root,solo?'inject-vps-standalone.js':'inject-nodes.js'),'utf8');
  await vm.runInNewContext('(async()=>{'+script+'})()',ctx,{timeout:5000});
  return JSON.parse(ctx.$content);
@@ -212,19 +236,24 @@ test('unchanged combined injector preserves groups; both injectors preserve pool
  }
 });
 const nodeIPv4Base='f22a5528c05f7f1e628f03c89704a5a10ebf9aa6';
-test('six JSON templates remain byte-identical to the approved PR13 main',()=>{
- for(const file of files)assert.deepEqual(fs.readFileSync(path.join(root,file)),execFileSync('git',['show',nodeIPv4Base+':'+file],{cwd:root}));
+test('combined JSON is unchanged; VPS JSON differs only by the exact IPv4-only delta',()=>{
+ for(const file of files){
+  const before=execFileSync('git',['show',nodeIPv4Base+':'+file],{cwd:root});
+  if(file.startsWith('config_vps_'))assert.deepEqual(read(file),vpsIPv4(JSON.parse(before)));
+  else assert.deepEqual(fs.readFileSync(path.join(root,file)),before);
+ }
 });
-test('only proxy server resolution changes; business DNS, direct and CDN fields stay unchanged',async()=>{
+test('IPv4-only is fixed despite obsolete strategy arguments; CDN and unrelated settings stay intact',async()=>{
  const oldScript=execFileSync('git',['show',nodeIPv4Base+':inject-vps-standalone.js'],{cwd:root,encoding:'utf8'});
- for(const file of files.filter(f=>f.startsWith('config_vps_')))for(const strategy of ['prefer_ipv4','prefer_ipv6']){
+ for(const file of files.filter(f=>f.startsWith('config_vps_')))for(const strategy of [undefined,'prefer_ipv4','prefer_ipv6','ipv4_only']){
   const options={source:[cdn,node('IPv4','192.0.2.50'),{...node('AAAA-only','aaaa-only.example'),domain_resolver:{server:'old',strategy:'ipv6_only'},domain_strategy:'ipv6_only'}],args:{strategy}};
-  const c=await generate(file,options),before=await generate(file,{...options,script:oldScript});
+  const oldTemplate=JSON.parse(execFileSync('git',['show',nodeIPv4Base+':'+file],{cwd:root}));
+  const c=await generate(file,options),before=vpsIPv4(await generate(file,{...options,args:{},script:oldScript,template:oldTemplate}));
   for(const outbound of before.outbounds.filter(o=>o.server))outbound.domain_resolver.strategy='ipv4_only';
   assert.deepEqual(c,before,'unrelated generated setting or protocol field changed');
-  assert.equal(c.dns.strategy,strategy);
-  assert.equal(c.outbounds.find(o=>o.type==='direct').domain_resolver.strategy,strategy);
-  assert.equal(c.route.default_domain_resolver.strategy,strategy);
+  assert.equal(c.dns.strategy,'ipv4_only');
+  assert.equal(c.outbounds.find(o=>o.type==='direct').domain_resolver.strategy,'ipv4_only');
+  assert.equal(c.route.default_domain_resolver.strategy,'ipv4_only');
  }
 });
 test('IPv6 literals never enter selectors; filtering is reported and all-IPv6 input fails',async()=>{
