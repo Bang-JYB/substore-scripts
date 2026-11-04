@@ -22,6 +22,7 @@ function vpsIPv4(c){
  c.outbounds.find(o=>o.type==='direct').domain_resolver.strategy='ipv4_only';
  c.route.default_domain_resolver.strategy='ipv4_only';
  for(const client of c.http_clients)client.domain_resolver.strategy='ipv4_only';
+ for(const inbound of c.inbounds.filter(o=>o.type==='tun'))inbound.address=inbound.address.filter(a=>!a.includes(':'));
  c.dns.rules.unshift({query_type:'AAAA',action:'predefined',rcode:'NOERROR'});
  c.route.rules.splice(1,0,{ip_version:6,action:'reject'});
  return c;
@@ -236,6 +237,20 @@ test('unchanged combined injector preserves groups; both injectors preserve pool
  }
 });
 const nodeIPv4Base='f22a5528c05f7f1e628f03c89704a5a10ebf9aa6';
+test('all generated TUN addresses are IPv4-only and use modern address fields',async()=>{
+ for(const file of files){
+  const c=await generate(file);
+  for(const inbound of c.inbounds){
+   assert.equal('inet4_address' in inbound,false);
+   assert.equal('inet6_address' in inbound,false);
+   if(inbound.type==='tun')assert.deepEqual(inbound.address,['172.19.0.1/30']);
+  }
+  for(const outbound of c.outbounds.filter(o=>o.server)){
+   assert.equal(outbound.domain_resolver.strategy,'ipv4_only');
+   assert.equal('domain_strategy' in outbound,false);
+  }
+ }
+});
 test('combined JSON is unchanged; VPS JSON differs only by the exact IPv4-only delta',()=>{
  for(const file of files){
   const before=execFileSync('git',['show',nodeIPv4Base+':'+file],{cwd:root});
