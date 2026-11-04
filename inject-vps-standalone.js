@@ -1,12 +1,12 @@
 // Sub-Store 远程文件脚本，配合 config_vps_standalone.json。
 // 只读取单订阅；不依赖组合订阅、厂商或节点名称，不内置真实节点/凭据。
-// 参数：name=VPS；strategy=prefer_ipv4 或 prefer_ipv6；mode=tun 或 mixed。
+// 客户端统一 IPv4-only；旧 strategy 参数不再读取。
+// 参数：name=VPS；mode=tun 或 mixed。
 const args = typeof $arguments === 'object' && $arguments ? $arguments : {};
 const name = String(args.name ?? 'VPS').trim();
-const strategy = String(args.strategy ?? 'prefer_ipv4');
+const strategy = 'ipv4_only';
 const mode = String(args.mode ?? 'tun');
 if (!name) throw new Error('name 必须填写 Sub-Store 单订阅名称');
-if (!['prefer_ipv4', 'prefer_ipv6'].includes(strategy)) throw new Error('strategy 只能是 prefer_ipv4 或 prefer_ipv6');
 if (!['tun', 'mixed'].includes(mode)) throw new Error('mode 只能是 tun 或 mixed');
 if (typeof produceArtifact !== 'function') throw new Error('请在 Sub-Store 远程文件脚本中运行');
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -53,10 +53,11 @@ if (!Array.isArray(source?.outbounds)) throw new Error('订阅转换结果缺少
 // 只注入转换后有服务器地址的代理出站，排除来源中的策略组和 direct。
 const nodes = [], tags = [], seen = new Map(), originalTags = new Map();
 const reserved = new Set(['VPS选择', 'VPS自动', 'direct']);
-let duplicates = 0;
+let duplicates = 0, droppedV6 = 0;
 for (const raw of source.outbounds) {
   if (!raw || typeof raw.server !== 'string' || !raw.server.trim()) continue;
   if (['selector', 'urltest', 'direct', 'block', 'dns'].includes(raw.type)) continue;
+  if (raw.server.includes(':')) { droppedV6++; continue; }
   const id = identity(raw), original = String(raw.tag ?? '').trim();
   if (original && originalTags.has(original) && originalTags.get(original).id !== id) {
     throw new Error('订阅中节点重名且配置不同，请先重命名：' + original);
@@ -76,15 +77,15 @@ for (const raw of source.outbounds) {
   node.tag = tag;
   // 1.14 模板使用 domain_resolver，保留服务器 IP、TLS 和协议字段。
   delete node.domain_strategy;
-  node.domain_resolver = {server: 'vps-dns', strategy};
+  node.domain_resolver = {server: 'vps-dns', strategy: 'ipv4_only'};
   nodes.push(node);
   tags.push(tag);
 }
-if (!nodes.length) throw new Error('单订阅中没有可转换的服务器代理节点，已停止生成');
+if (!nodes.length) throw new Error('IPv4-only：单订阅中没有可用节点，已过滤 IPv6 字面量 ' + droppedV6 + ' 个；请使用有 A 记录的节点域名或 IPv4 地址');
 for (const node of nodes) {
   if (!node.detour || node.detour === 'direct') continue;
   const target = originalTags.get(node.detour);
-  if (!target) throw new Error('链式拨号依赖不存在或不受支持：' + node.tag);
+  if (!target) throw new Error('链式拨号依赖不存在、已被 IPv4-only 过滤或不受支持：' + node.tag);
   node.detour = target.tag;
 }
 // 链式拨号必须能到达出口，避免自引用或环形依赖。
@@ -114,4 +115,4 @@ if (mode === 'mixed') config.inbounds = config.inbounds.filter(inbound => inboun
 const output = JSON.stringify(config);
 if (new TextEncoder().encode(output).length > 1024 * 1024) throw new Error('生成配置超过 1 MiB，请减少订阅节点');
 $content = output;
-console.log('[VPS 独立订阅] ' + name + '：' + nodes.length + ' 个节点，去重 ' + duplicates + '；双栈 ' + strategy + '；' + mode);
+console.log('[VPS 独立订阅] ' + name + '：' + nodes.length + ' 个节点，去重 ' + duplicates + '；客户端 IPv4-only，过滤 IPv6 字面量 ' + droppedV6 + '；' + mode);

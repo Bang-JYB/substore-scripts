@@ -1,5 +1,80 @@
 # 验证记录
 
+## 当前：全部客户端统一 IPv4-only（2026-11-04，覆盖 PR #14 首稿）
+
+main 仍为 `f22a5528c05f7f1e628f03c89704a5a10ebf9aa6`，沿用 PR #14 / `fix/node-ipv4-only-20261104`，不新增 PR 或开发分支、不合并。主线备份 `backup/main-before-node-ipv4-20261104` 不变；另已创建并重新读取 `backup/pr14-before-all-ipv4-20261104`，指向首稿 `7aeb67485db74ec4dcf0a69c91671e7c1eaf0632`。
+
+本轮进一步核对 TUN 后，备份 `backup/pr14-before-tun-ipv4-20261104` 已读取验证为 `a0f792201912a392e0ae0bee4d448662d2a9699e`，保存移除 IPv6 TUN 地址之前的状态。
+
+### 必要差异
+
+- 组合版三份 JSON 和 `inject-nodes.js` 已满足要求，逐字节保留。VPS 三份模板把 DNS、Direct、默认解析、规则下载解析四处 strategy 改为 `ipv4_only`；只新增 AAAA 空响应与 `ip_version: 6` / `reject` 两条规则。前者优先于 DNS 模式分流，后者在 sniff 后、DNS/LAN/模式/代理分类前，避免 IPv6 私网或 Direct/Global 放行。
+- VPS 注入器固定 `ipv4_only`，不再读取或校验 `args.strategy`，删除双栈切换功能；旧链接中遗留的该参数被忽略，测试证明不能重新启用 IPv6。保留首稿的 IPv6 字面量过滤、日志提示和 detour 断链/循环拒绝。
+- DNS 服务器、缓存、FakeIP、route.resolve、国内/LAN 的 IPv4、AI/GitHub/即时设计/Apple/Microsoft、UDP443 原规则、八组/分池、节点字段、TUN stack/MTU、端口及测速均不改。TUN 地址仅移除 VPS 桌面和 Android 两份中的 `fdfe:dcba:9876::1/126`，保留 `172.19.0.1/30`；其他模板无需再改。
+- 六份生成配置中所有 TUN 仅使用 IPv4 `address`，不使用废弃 `inet4_address` / `inet6_address`。IPv6 拒绝规则仍保留，但只能约束进入核心的流量；IPv4-only TUN 的系统原生 IPv6 接管取决于平台，mixed 中未使用代理的应用同样不受控制。没有修改操作系统 IPv6 或服务端，也不承诺其全局 IPv6 被禁用。
+
+### 官方 1.14.4 依据与边界
+
+固定版本 [DNS Lookup](https://github.com/SagerNet/sing-box/blob/v1.14.4/dns/client.go) 的 `ipv4_only` 仅查 A；[DNS action](https://github.com/SagerNet/sing-box/blob/v1.14.4/docs/configuration/dns/rule_action.md) 支持 `predefined` 空响应；[Route rule](https://github.com/SagerNet/sing-box/blob/v1.14.4/docs/configuration/route/rule.md) 支持 `ip_version: 6`，配合官方 `reject`。直接沿用组合版已有方式，不新增自定义机制。
+
+官方 [TUN](https://github.com/SagerNet/sing-box/blob/v1.14.4/docs/configuration/inbound/tun.md) 使用 `address`；[Migration](https://github.com/SagerNet/sing-box/blob/v1.14.4/docs/migration.md#tun-address-fields-are-merged) 要求迁移废弃地址字段。[TUN 源码](https://github.com/SagerNet/sing-box/blob/v1.14.4/protocol/tun/inbound.go) 按地址族拆分该列表，没有要求必须同时提供两族。采用与现有组合版一致的单 IPv4 地址；官方核心接受不代表三平台实际网络已验收。官方 strict_route 的“unsupported network unreachable”说明只列 Linux/Windows，不能外推为 macOS/Android 的全局 IPv6 保证。
+
+客户端统一 IPv4 不修改 VPS 本身的双栈配置；如果客户端预先解析目标为 IPv4，则该次代理连接可能使用 IPv4 出口。实际传递域名时，远端选择仍取决于服务端/协议。CDN 到源站由 CDN 决定，不要求本轮额外实现远端双栈优选。
+
+### 验证
+
+上一阶段在 PR #14 首稿复现 14 项失败，更新 IPv4-only 后 39 项通过，原输出保留于 checks/results/all-client-ipv4-20261104.log。本轮新增 TUN 地址/现代字段断言后，在上一阶段复现 5 项失败；移除两份 IPv6 TUN 地址后 40 项全部通过。官方 1.14.4 和兼容性基准 1.14.2 各检查六份完整生成配置，均成功，0 跳过；本轮实际输出及输入哈希见 [checks/results/tun-ipv4-20261104.log](checks/results/tun-ipv4-20261104.log)。
+
+覆盖六模板的 AAAA 空响应、IPv6 LAN/TCP/UDP/53/443/8443 在 Rule/Direct/Global 下拒绝；节点 IPv6 过滤、旧优选参数无效、Direct/默认/规则下载策略、CDN TLS/WS/认证及链式依赖；原 IPv4 国内/海外/AI/GitHub/即时设计/UDP443/QQ/八组分池仍通过。通过精确差异断言防止 IPv4 以外字段变化。路由结果属于静态夹具，核心 check 不执行真实连接；执行器 netlink 受限，不宣称 Windows/macOS/Android 实机 IPv4 或真实 HY2/TUIC 连接通过。
+
+### 试用及回滚
+
+VPS 试用文件的“内容”模板 URL 与“操作”注入脚本 URL **都**改用 `/fix/node-ipv4-only-20261104/`，刷新两者缓存；保留原 name/mode，删除旧 strategy 参数（遗留也无效）。预览确认 ipv4_only、AAAA 空响应、优先 IPv6 拒绝，重新生成并更新客户端，停止/启动后固定节点测试。组合版无需修改试用链接。实际设备检查 IPv4 网站及直连/代理正常，IPv6 字面量目标（含 LAN）失败；核对核心 TCP/UDP 远端地址及 TUN 捕获范围，不能以浏览器出口 IP 代替。
+
+回滚到生产版：恢复模板和脚本的 main URL（当前 main 未改），重新生成、更新并重启客户端；需要固定版本时使用 main 备份对应的完整 SHA。只回到 PR 首稿可用 `backup/pr14-before-all-ipv4-20261104`；只恢复本轮之前的 TUN 地址可对照 `backup/pr14-before-tun-ipv4-20261104`。若以后合并，用独立 revert PR 回滚，不强推、不删除任何备份，不修改 VPS。
+
+## 历史：PR #14 首稿仅限制节点（2026-11-04；已被上方统一策略取代）
+
+基线 main：`f22a5528c05f7f1e628f03c89704a5a10ebf9aa6`，PR #13 已合并；开放 PR #9 不混入。备份 `backup/main-before-node-ipv4-20261104` 已通过 GitHub ref 重新读取验证，指向同一基线。开发分支 `fix/node-ipv4-only-20261104`，提交 PR 后等待实机测试，不合并。
+
+### 最小差异与官方依据
+
+- 唯一生产改动在 `inject-vps-standalone.js`：每个服务器节点的解析固定为 `vps-dns` / `ipv4_only`；过滤 IPv6 字面量并报告；全部过滤或过滤后 detour 缺失时停止生成。原 detour 映射和环检测复用，不重构。IPv4、CDN 域名、TLS/SNI/WS/认证和命名保持原样。
+- 六份 JSON 与基线逐字节相同，`inject-nodes.js` 与历史基线相同。组合版已使用 `ipv4_only` 并过滤 IPv6；不重复添加规则。全局 DNS、Direct、默认解析继续使用原 `strategy` 参数，包含 `prefer_ipv6`；未改服务端。
+- 官方固定版本 [Dial Fields](https://github.com/SagerNet/sing-box/blob/v1.14.4/docs/configuration/shared/dial.md) 将代理 `domain_resolver` 的作用域定义为服务器域名，Direct 的作用域为请求域名。[dns/client.go](https://github.com/SagerNet/sing-box/blob/v1.14.4/dns/client.go) 的 `Lookup` 在 `ipv4_only` 分支只调用 A 查询；`prefer_ipv4` 则仍有 A/AAAA 两个分支。
+- [dialer.go](https://github.com/SagerNet/sing-box/blob/v1.14.4/common/dialer/dialer.go) 对显式指定 `domain_resolver.server` 的 detour 节点仍包装解析器；[resolve.go](https://github.com/SagerNet/sing-box/blob/v1.14.4/common/dialer/resolve.go) 将解析后的地址交给拨号器，IP 字面量不重新解析。无 A 记录时，[dns/router.go](https://github.com/SagerNet/sing-box/blob/v1.14.4/dns/router.go) 将空结果转为解析错误，不创建 IPv6 回退。
+- 普通 HY2/TUIC 使用同一出站拨号器，未更改外层 UDP 443 或 QUIC 参数。原独立注入器只接收有 `server` 的 outbounds；endpoint、无 server 的 Realm 等不在原支持范围，本次不新增协议路径或声称这些特殊模式已验证。
+
+### A/B/C/D 与双栈边界
+
+| 路径 | 本次行为 |
+| --- | --- |
+| A 客户端解析/连接节点服务器 | 固定 IPv4-only；detour 链中所有保留的服务器节点同样处理 |
+| B 本地 Direct 访问网站 | 原业务策略、DNS 服务器及路由不变，不改为 IPv4-only |
+| C 客户端预先解析代理目标 | 原 `route.resolve`、系统/应用解析和协议行为不变；可能把目标 IP 传给 VPS，并非保证服务端自主解析 |
+| D VPS 接收到目标域名 | 在协议允许且实际传递域名时由服务端决定解析/出口；客户端节点解析策略不配置远端服务器 DNS 或出口 |
+
+官方 [route action](https://github.com/SagerNet/sing-box/blob/v1.14.4/docs/configuration/route/rule_action.md) 明确 `resolve` 将请求域名解析成 IP；[route/conn.go](https://github.com/SagerNet/sing-box/blob/v1.14.4/route/conn.go) 对已有目标地址列表的请求采用地址拨号路径。故只能保证本次不新增目标 IPv4 限制，不能声称所有请求保持域名到达 VPS。组合版原有整体 IPv4/FakeIP 策略也不改。强制所有目标由 VPS 自主双栈解析属于另一个路由/协议/服务端问题，本次不实施。
+
+CDN 的 A 记录对应 IPv4 边缘；CDN 到源站由 CDN 配置和网络决定，不等于客户端控制了源站的连接地址族。真实 VPS 的 IPv6 路由、防火墙、DNS 和协议是否可用，本次没有权限或实测证据。
+
+### 测试与限制
+
+先添加针对性断言，旧脚本下 4 项检查失败（仍保留 IPv6 字面量，节点解析仍随 prefer 策略）；修改后现有 Node 检查扩展到 33 项，全部通过。包括两种业务策略/三份 VPS 模板与旧输出的逐字段对照、CDN 原始字段、IPv4、AAAA-only 策略、IPv6 各种字面量、detour/direct 链、IPv6 ShadowTLS 依赖被过滤时拒绝生成及环检测。未删原有分流/QQ/UDP443/分池检查；原“保留 VPS IPv6 服务器”断言按本次明确需求改为排除。
+
+官方 1.14.4 与原 1.14.2 分别检查六份完整生成配置（含虚构 HY2/TUIC/CDN 节点），33/33 通过、0 跳过。结果和输入哈希见 [checks/results/node-ipv4-20261104.log](checks/results/node-ipv4-20261104.log)。1.14.4 发布包 SHA256：`699a1b510aa4396b2176d32d1181920399ebf1e267835da6f3b598d0f7c24968`，与官方 release asset digest 一致。
+
+尝试官方 1.14.4 `tools fetch` 配合纯回环 HTTP 代理和官方 hosts DNS 的最小连接实验，核心初始化报 `create netlink socket: operation not permitted`，未进入 DNS/连接阶段。因此没有把连接实验、实际 A/AAAA 查询次数、AAAA-only 运行时错误或 Windows/macOS/Android 实机连接计为通过。地址族约束的证据是生成结果和官方源码，核心 `check` 只证明配置可接受；本次不声称真实 VPS 双栈、CDN 或 HY2/TUIC 连通通过。
+
+### 实机试用与回滚
+
+1. 复制当前 Sub-Store 远程文件，六份模板 URL 保持原样；只把 VPS 注入脚本 URL 的 `/main/` 改为 `/fix/node-ipv4-only-20261104/`，原 `#name=...&strategy=...&mode=...` 参数全部保留。组合版无需替换脚本。刷新远程脚本缓存，重新生成并更新客户端，停止/启动服务，固定同一节点再建新连接。
+2. 预览确认节点（包括链式辅助节点）为 `ipv4_only`，全局 DNS、direct 和默认解析仍为原 prefer 策略，域名/TLS/WS 字段完全不变，IPv6 字面量不在池中。
+3. Windows 用核心进程 TCP 连接表，macOS 用核心进程 `lsof -nP -a -p <PID> -iTCP` 或抓包，核对到节点/CDN 服务器端口的远端为 IPv4；HY2/TUIC 应核对 UDP，不能只查 TCP。不要以浏览器出口 IP 或 curl 的 `-4/-6` 证明节点外层地址族。
+4. 有现成 AAAA-only 节点时，确认新连接明确解析失败、不会出现 IPv6 外连；仅 IPv6 字面量订阅应在 Sub-Store 停止生成。不要为测试删除生产域名的 A 记录。
+5. 分别在 Windows 移动、macOS 电信、Android 上检查国内/LAN、即时设计、GitHub/AI、TUN/mixed 和下载。真实 VPS 若需确认双栈，仅由用户在服务端做只读网络测试；不调整 IPv6/路由/BBR。
+6. 不理想时停用试用文件，恢复原文件/脚本 URL（原始基线可固定为 `/f22a5528c05f7f1e628f03c89704a5a10ebf9aa6/`），重新生成订阅并更新、重启客户端。旧 `prefer_ipv6` 将恢复包括节点解析在内的旧行为；不会恢复 QQ 专用规则。若以后合并，用独立 revert PR 撤销本轮，不强推 main；保留备份分支，不删除缓存或更改服务端。
+
 ## 即时设计直连与 VPS UDP 443（2026-10-30）
 
 基线：main `3b2607b111e74d9f3d31577902e75647f757a58f`。独立分支 `fix/jsdesign-direct-20261030`；不自动合并。

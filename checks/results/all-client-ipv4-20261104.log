@@ -1,0 +1,130 @@
+UTC 2026-11-04T07:42:24Z
+7aeb67485db74ec4dcf0a69c91671e7c1eaf0632
+97762f3f2f44f35e9cba13204b8dfdeace7fb4fe3c1eee19d11e645bd6a04781  config_android.json
+183e1f02c9bedae4f1b823926d5663697f7847356563c7d3db3637ce3fd583e5  config_pc.json
+602b3defbb6ecc1a433bf151428e619b34f055d68b13bde5867cc1358cfcc83d  config_tun.json
+3694758d98022393167d023b772432007aa517797a6696cfaaae241fbdaa3e17  config_vps_android.json
+fe677c966a5925031c3e3f7d56c0b0c8211cd192f9a91f52ee65bde66eef67e1  config_vps_notun.json
+ab08c0a432cbf274273ef8d86269033dab3853eabd4922e92b3adb1166d85579  config_vps_standalone.json
+a463822024ff83e219edff7dbddf3036e26b11a4cecb95562be8bcde7f35637d  inject-nodes.js
+d0b1a267108c38d4b710713f281182d49de4d2684c42127aed4d823d0353613c  inject-vps-standalone.js
+6d09dc93c46083daf836ba1c01fdbc00bac3bada5a5363d687f011171898e18e  checks/minimal-rules.mjs
+BEFORE: updated IPv4-only assertions against PR14 first draft
+ℹ pass 24
+ℹ fail 14
+ℹ skipped 1
+AFTER: official 1.14.4
+sing-box version 1.14.4
+
+Environment: go1.26.10 linux/amd64
+Tags: with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale,with_ccm,with_ocm,with_cloudflared,with_naive_outbound,with_usbip,with_openvpn,with_openconnect,badlinkname,tfogo_checklinkname0,with_purego
+Revision: c005f35300ce76427dc285481ec5695f5b179cd2
+CGO: disabled
+CORE_OK config_pc.json
+CORE_OK config_tun.json
+CORE_OK config_android.json
+CORE_OK config_vps_notun.json
+CORE_OK config_vps_standalone.json
+CORE_OK config_vps_android.json
+✔ QQ-specific overrides removed; ordinary classification retained: config_pc.json (2.035478ms)
+✔ only the declared rule edits are permitted: config_pc.json (7.492172ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_pc.json (4.710245ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_pc.json (1.096283ms)
+✔ AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_pc.json (0.29166ms)
+✔ original single UDP443 guard and its priority limitations are explicit: config_pc.json (0.499813ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_tun.json (0.217087ms)
+✔ only the declared rule edits are permitted: config_tun.json (1.111214ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_tun.json (1.517237ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_tun.json (0.35187ms)
+✔ AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_tun.json (0.367464ms)
+✔ original single UDP443 guard and its priority limitations are explicit: config_tun.json (0.470088ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_android.json (0.100722ms)
+✔ only the declared rule edits are permitted: config_android.json (0.819075ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_android.json (1.737559ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_android.json (0.36484ms)
+✔ AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_android.json (0.186ms)
+✔ original single UDP443 guard and its priority limitations are explicit: config_android.json (0.449267ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_vps_notun.json (0.346141ms)
+✔ only the declared rule edits are permitted: config_vps_notun.json (0.357479ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_vps_notun.json (0.415587ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_vps_notun.json (0.186271ms)
+✔ VPS IPv4 UDP443 protection, direct and other UDP preserved: config_vps_notun.json (0.467244ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_vps_standalone.json (0.323147ms)
+✔ only the declared rule edits are permitted: config_vps_standalone.json (0.600054ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_vps_standalone.json (2.204317ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_vps_standalone.json (0.361875ms)
+✔ VPS IPv4 UDP443 protection, direct and other UDP preserved: config_vps_standalone.json (0.473814ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_vps_android.json (0.174903ms)
+✔ only the declared rule edits are permitted: config_vps_android.json (0.536318ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_vps_android.json (0.642017ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_vps_android.json (0.985795ms)
+✔ VPS IPv4 UDP443 protection, direct and other UDP preserved: config_vps_android.json (0.669639ms)
+✔ unchanged combined injector preserves groups; both injectors preserve pools and protocol fields (27.999411ms)
+✔ combined JSON is unchanged; VPS JSON differs only by the exact IPv4-only delta (29.940346ms)
+✔ IPv4-only is fixed despite obsolete strategy arguments; CDN and unrelated settings stay intact (109.952831ms)
+✔ IPv6 literals never enter selectors; filtering is reported and all-IPv6 input fails (3.983234ms)
+✔ every detour hop has IPv4-only server resolution; filtered or cyclic dependencies fail closed (11.828047ms)
+✔ official 1.14.2/1.14.3/1.14.4 core checks all six fully injected configurations (421.952458ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 690.123764
+BACKWARD COMPATIBILITY: official 1.14.2
+CORE_OK config_pc.json
+CORE_OK config_tun.json
+CORE_OK config_android.json
+CORE_OK config_vps_notun.json
+CORE_OK config_vps_standalone.json
+CORE_OK config_vps_android.json
+✔ QQ-specific overrides removed; ordinary classification retained: config_pc.json (2.095158ms)
+✔ only the declared rule edits are permitted: config_pc.json (2.447549ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_pc.json (3.87545ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_pc.json (0.752875ms)
+✔ AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_pc.json (0.798384ms)
+✔ original single UDP443 guard and its priority limitations are explicit: config_pc.json (0.768618ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_tun.json (0.215384ms)
+✔ only the declared rule edits are permitted: config_tun.json (0.857462ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_tun.json (2.072103ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_tun.json (0.486623ms)
+✔ AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_tun.json (0.203697ms)
+✔ original single UDP443 guard and its priority limitations are explicit: config_tun.json (0.278129ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_android.json (0.140692ms)
+✔ only the declared rule edits are permitted: config_android.json (0.600325ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_android.json (3.870574ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_android.json (0.363248ms)
+✔ AI route precedes GitHub/Microsoft; DNS retains historical behavior: config_android.json (0.372041ms)
+✔ original single UDP443 guard and its priority limitations are explicit: config_android.json (0.314895ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_vps_notun.json (0.39146ms)
+✔ only the declared rule edits are permitted: config_vps_notun.json (0.403038ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_vps_notun.json (0.467164ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_vps_notun.json (0.262305ms)
+✔ VPS IPv4 UDP443 protection, direct and other UDP preserved: config_vps_notun.json (0.707046ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_vps_standalone.json (0.126421ms)
+✔ only the declared rule edits are permitted: config_vps_standalone.json (0.514886ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_vps_standalone.json (3.495638ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_vps_standalone.json (0.209296ms)
+✔ VPS IPv4 UDP443 protection, direct and other UDP preserved: config_vps_standalone.json (0.284048ms)
+✔ QQ-specific overrides removed; ordinary classification retained: config_vps_android.json (0.316407ms)
+✔ only the declared rule edits are permitted: config_vps_android.json (0.647697ms)
+✔ JS Design and all subdomains use direct DNS/routing without changing modes: config_vps_android.json (0.571601ms)
+✔ AAAA is empty and IPv6 cannot bypass via LAN, ports or Direct/Global: config_vps_android.json (0.37155ms)
+✔ VPS IPv4 UDP443 protection, direct and other UDP preserved: config_vps_android.json (0.340353ms)
+✔ unchanged combined injector preserves groups; both injectors preserve pools and protocol fields (36.242745ms)
+✔ combined JSON is unchanged; VPS JSON differs only by the exact IPv4-only delta (27.185904ms)
+✔ IPv4-only is fixed despite obsolete strategy arguments; CDN and unrelated settings stay intact (181.615269ms)
+✔ IPv6 literals never enter selectors; filtering is reported and all-IPv6 input fails (8.713943ms)
+✔ every detour hop has IPv4-only server resolution; filtered or cyclic dependencies fail closed (9.060156ms)
+✔ official 1.14.2/1.14.3/1.14.4 core checks all six fully injected configurations (565.970807ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 904.559545
+LIMIT: static route fixtures and official config checks only. Real client traffic was not tested. Earlier core runtime initialization was blocked by executor netlink permissions.
